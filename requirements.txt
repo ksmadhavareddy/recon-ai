@@ -3,3 +3,4 @@ openpyxl
 catboost
 scikit-learn
 crewai
+streamlit
