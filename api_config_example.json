@@ -1,0 +1,19 @@
+{
+  "base_url": "https://api.example.com",
+  "api_key": "your_api_key_here",
+  "timeout": 30,
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  },
+  "headers": {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  },
+  "parameters": {
+    "default_date": "2024-01-01",
+    "batch_size": 1000
+  }
+} 

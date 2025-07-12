@@ -4,3 +4,9 @@ catboost
 scikit-learn
 crewai
 streamlit
+plotly
+joblib
+requests
+fastapi
+uvicorn
+sqlite3

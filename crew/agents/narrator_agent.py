@@ -22,7 +22,7 @@ class NarratorAgent:
             "TradeID", "PV_old", "PV_new", "PV_Diff",
             "Delta_old", "Delta_new", "Delta_Diff",
             "ProductType", "FundingCurve", "CSA_Type", "ModelVersion",
-            "PV_Mismatch", "Delta_Mismatch", "Diagnosis"
+            "PV_Mismatch", "Delta_Mismatch", "Diagnosis", "ML_Diagnosis"
         ]
         df.to_excel(output_path, index=False, columns=cols)
         print(f"\n✅ Report saved to: {output_path}")
