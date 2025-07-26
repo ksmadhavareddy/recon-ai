@@ -9,4 +9,3 @@ joblib
 requests
 fastapi
 uvicorn
-sqlite3

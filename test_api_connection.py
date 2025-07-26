@@ -6,7 +6,7 @@ API Connection Test Utility for AI Reconciliation System
 import json
 import sys
 import requests
-from crew.agents.api_data_loader import APIDataLoaderAgent
+from crew.agents.unified_data_loader import UnifiedDataLoaderAgent
 
 def test_api_connection(config_file=None, base_url=None, api_key=None):
     """
@@ -38,36 +38,38 @@ def test_api_connection(config_file=None, base_url=None, api_key=None):
         endpoints = {}
         headers = {}
     
-    if not base_url or not api_key:
-        print("❌ Missing base_url or api_key")
+    if not base_url:
+        print("❌ Missing base_url")
         return False
     
-    # Initialize API loader
+    # Prepare API config for unified loader
+    api_config = {
+        'base_url': base_url,
+        'api_key': api_key,
+        'timeout': timeout,
+        'endpoints': endpoints,
+        'headers': headers
+    }
+    
+    # Initialize unified loader
     try:
-        api_loader = APIDataLoaderAgent(
-            base_url=base_url,
-            api_key=api_key,
-            timeout=timeout
-        )
+        unified_loader = UnifiedDataLoaderAgent(api_config=api_config)
         
-        # Set custom endpoints and headers
-        if endpoints:
-            api_loader.set_endpoints(endpoints)
-        if headers:
-            api_loader.set_headers(headers)
-        
-        print(f"✅ API Loader initialized")
+        print(f"✅ Unified Loader initialized")
         print(f"📍 Base URL: {base_url}")
-        print(f"🔑 API Key: {api_key[:8]}...")
+        if api_key:
+            print(f"🔑 API Key: {api_key[:8]}...")
+        else:
+            print(f"🔑 API Key: None (local server)")
         print(f"⏱️  Timeout: {timeout}s")
         
     except Exception as e:
-        print(f"❌ Error initializing API loader: {e}")
+        print(f"❌ Error initializing unified loader: {e}")
         return False
     
     # Test connection
     print("\n🔍 Testing API Connection...")
-    if api_loader.validate_api_connection():
+    if unified_loader._validate_api_connection():
         print("✅ API connection successful")
     else:
         print("❌ API connection failed")
@@ -75,7 +77,7 @@ def test_api_connection(config_file=None, base_url=None, api_key=None):
     
     # Test individual endpoints
     print("\n📡 Testing Individual Endpoints...")
-    endpoint_status = api_loader.get_api_status()
+    endpoint_status = unified_loader.get_api_status()
     
     all_endpoints_ok = True
     for endpoint_name, status in endpoint_status.items():
@@ -95,7 +97,7 @@ def test_api_connection(config_file=None, base_url=None, api_key=None):
     
     # Test old pricing
     print("🔍 Testing old pricing endpoint...")
-    old_pricing = api_loader.fetch_old_pricing(trade_ids=['TEST'], date='2024-01-01')
+    old_pricing = unified_loader._fetch_from_api(unified_loader.endpoints['old_pricing'], trade_ids=['TEST'], date='2024-01-01')
     if old_pricing is not None:
         print(f"✅ Old pricing: {len(old_pricing)} records")
     else:
@@ -104,25 +106,25 @@ def test_api_connection(config_file=None, base_url=None, api_key=None):
     
     # Test new pricing
     print("🔍 Testing new pricing endpoint...")
-    new_pricing = api_loader.fetch_new_pricing(trade_ids=['TEST'], date='2024-01-01')
+    new_pricing = unified_loader._fetch_from_api(unified_loader.endpoints['new_pricing'], trade_ids=['TEST'], date='2024-01-01')
     if new_pricing is not None:
         print(f"✅ New pricing: {len(new_pricing)} records")
     else:
         print("❌ New pricing: Failed to fetch")
         return False
     
-    # Test metadata
-    print("🔍 Testing metadata endpoint...")
-    metadata = api_loader.fetch_trade_metadata(trade_ids=['TEST'])
+    # Test trade metadata
+    print("🔍 Testing trade metadata endpoint...")
+    metadata = unified_loader._fetch_from_api(unified_loader.endpoints['trade_metadata'], trade_ids=['TEST'])
     if metadata is not None:
-        print(f"✅ Metadata: {len(metadata)} records")
+        print(f"✅ Trade metadata: {len(metadata)} records")
     else:
-        print("❌ Metadata: Failed to fetch")
+        print("❌ Trade metadata: Failed to fetch")
         return False
     
     # Test funding reference
     print("🔍 Testing funding reference endpoint...")
-    funding = api_loader.fetch_funding_reference(trade_ids=['TEST'])
+    funding = unified_loader._fetch_from_api(unified_loader.endpoints['funding_reference'], trade_ids=['TEST'])
     if funding is not None:
         print(f"✅ Funding reference: {len(funding)} records")
     else:
@@ -131,33 +133,34 @@ def test_api_connection(config_file=None, base_url=None, api_key=None):
     
     # Test complete data loading
     print("\n🔄 Testing Complete Data Loading...")
-    complete_data = api_loader.load_all_data_from_api(trade_ids=['TEST'], date='2024-01-01')
-    if complete_data is not None and not complete_data.empty:
-        print(f"✅ Complete data loading: {len(complete_data)} trades")
-        print(f"📋 Columns: {list(complete_data.columns)}")
-    else:
-        print("❌ Complete data loading: Failed")
+    try:
+        df = unified_loader.load_data(source="api", trade_ids=['TEST'], date='2024-01-01')
+        if df is not None and not df.empty:
+            print(f"✅ Complete data loading: {len(df)} trades")
+            print(f"📊 Columns: {list(df.columns)}")
+        else:
+            print("❌ Complete data loading: No data returned")
+            return False
+    except Exception as e:
+        print(f"❌ Complete data loading failed: {e}")
         return False
     
-    print("\n🎉 All API tests passed! Your API configuration is working correctly.")
+    print("\n🎉 All API tests passed successfully!")
     return True
 
 def main():
-    """Main function for CLI usage"""
+    """Main function for command-line usage"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="Test API connection for AI Reconciliation System")
+    parser = argparse.ArgumentParser(description="Test API connection for reconciliation system")
     parser.add_argument("--config", help="Path to API configuration JSON file")
     parser.add_argument("--base-url", help="API base URL")
-    parser.add_argument("--api-key", help="API key")
+    parser.add_argument("--api-key", help="API key for authentication")
     
     args = parser.parse_args()
     
-    if not args.config and (not args.base_url or not args.api_key):
-        print("❌ Please provide either --config file or --base-url and --api-key")
-        print("\nExample usage:")
-        print("  python test_api_connection.py --config api_config.json")
-        print("  python test_api_connection.py --base-url https://api.example.com --api-key your_key")
+    if not args.config and not args.base_url:
+        print("❌ Please provide either --config or --base-url")
         sys.exit(1)
     
     success = test_api_connection(

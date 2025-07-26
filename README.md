@@ -24,9 +24,10 @@ This project implements a modular, agent-based reconciliation engine powered by 
 recon-ai/
 ├── crew/
 │   ├── agents/                      # Modular agents
-│   │   ├── data_loader.py          # File-based data loading
-│   │   ├── api_data_loader.py      # API-based data loading
-│   │   ├── hybrid_data_loader.py   # Hybrid file+API loader
+│   │   ├── unified_data_loader.py  # Unified data loading (files + APIs)
+│   │   ├── data_loader.py          # Legacy file-based loader (deprecated)
+│   │   ├── api_data_loader.py      # Legacy API-based loader (deprecated)
+│   │   ├── hybrid_data_loader.py   # Legacy hybrid loader (deprecated)
 │   │   ├── recon_agent.py          # Mismatch detection
 │   │   ├── analyzer_agent.py       # Rule-based analysis
 │   │   ├── ml_tool.py             # ML diagnosis
@@ -42,6 +43,7 @@ recon-ai/
 ├── test_api_connection.py         # API testing utility
 ├── api_config_example.json        # API configuration template
 ├── API_DOCUMENTATION.md           # REST API documentation
+├── MIGRATION_GUIDE.md             # Migration guide for unified loader
 ├── requirements.txt
 └── README.md
 ```
@@ -57,6 +59,8 @@ pip install -r requirements.txt
 ```
 
 ### 2. 📂 Data Sources
+
+The system now uses a **unified data loader** that supports multiple sources:
 
 #### **Option A: File-based (Traditional)**
 Place input files into `data/`:
@@ -85,15 +89,30 @@ Configure API endpoints in `api_config_example.json`:
 }
 ```
 
+#### **Option C: Hybrid (Best of Both)**
+Configure both file and API sources for automatic fallback and data merging.
+
 ### 3. 🚀 Run the workflow:
 
 #### **Command Line:**
 ```bash
-# File-based
+# File-based only
+python pipeline.py --source files
+
+# API-based only
+python pipeline.py --source api --api-config api_config.json
+
+# Auto-detect (default) - tries API first, falls back to files
 python pipeline.py
 
-# API-based
-python pipeline.py --api-config api_config.json
+# Hybrid - loads from both sources and merges
+python pipeline.py --source hybrid --api-config api_config.json
+
+# With specific trade IDs
+python pipeline.py --source api --api-config api_config.json --trade-ids TRADE001 TRADE002
+
+# With specific date
+python pipeline.py --source api --api-config api_config.json --date 2024-01-15
 ```
 
 #### **Web Dashboard:**

@@ -11,12 +11,10 @@ import tempfile
 from typing import Optional, List, Dict, Any
 import logging
 
-# Import existing data loader logic
+# Import unified data loader
 import sys
 sys.path.append('..')
-from crew.agents.data_loader import DataLoaderAgent
-from crew.agents.api_data_loader import APIDataLoaderAgent
-from crew.agents.hybrid_data_loader import HybridDataLoaderAgent
+from crew.agents.unified_data_loader import UnifiedDataLoaderAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,45 +28,32 @@ app = FastAPI(
 
 class DataService:
     def __init__(self):
-        self.data_loader = None
-        self.api_loader = None
-        self.hybrid_loader = None
+        self.unified_loader = None
+    
+    def load_data(self, source: str = "auto", data_dir: str = None, api_config: Dict[str, Any] = None, 
+                  trade_ids: Optional[List[str]] = None, date: Optional[str] = None) -> pd.DataFrame:
+        """Load data using unified loader"""
+        try:
+            self.unified_loader = UnifiedDataLoaderAgent(data_dir=data_dir, api_config=api_config)
+            df = self.unified_loader.load_data(source, trade_ids, date)
+            if df is None or df.empty:
+                raise ValueError(f"No data loaded from {source} source")
+            return df
+        except Exception as e:
+            logger.error(f"Error loading data from {source}: {e}")
+            raise
     
     def load_from_files(self, data_dir: str) -> pd.DataFrame:
         """Load data from Excel files"""
-        try:
-            self.data_loader = DataLoaderAgent(data_dir)
-            df = self.data_loader.load_all_data()
-            if df is None or df.empty:
-                raise ValueError("No data loaded from files")
-            return df
-        except Exception as e:
-            logger.error(f"Error loading data from files: {e}")
-            raise
+        return self.load_data(source="files", data_dir=data_dir)
     
     def load_from_api(self, api_config: Dict[str, Any], trade_ids: Optional[List[str]] = None, date: Optional[str] = None) -> pd.DataFrame:
         """Load data from API"""
-        try:
-            self.api_loader = APIDataLoaderAgent(api_config)
-            df = self.api_loader.load_all_data_from_api(trade_ids, date)
-            if df is None or df.empty:
-                raise ValueError("No data loaded from API")
-            return df
-        except Exception as e:
-            logger.error(f"Error loading data from API: {e}")
-            raise
+        return self.load_data(source="api", api_config=api_config, trade_ids=trade_ids, date=date)
     
     def load_hybrid(self, data_dir: str, api_config: Dict[str, Any], source: str = "auto", trade_ids: Optional[List[str]] = None, date: Optional[str] = None) -> pd.DataFrame:
         """Load data using hybrid approach"""
-        try:
-            self.hybrid_loader = HybridDataLoaderAgent(data_dir, api_config)
-            df = self.hybrid_loader.load_data(source, trade_ids, date)
-            if df is None or df.empty:
-                raise ValueError("No data loaded from hybrid source")
-            return df
-        except Exception as e:
-            logger.error(f"Error loading data from hybrid source: {e}")
-            raise
+        return self.load_data(source=source, data_dir=data_dir, api_config=api_config, trade_ids=trade_ids, date=date)
     
     def validate_data(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Validate data quality and return summary"""
@@ -99,6 +84,18 @@ class DataService:
         except Exception as e:
             logger.error(f"Error validating data: {e}")
             raise
+    
+    def get_available_sources(self) -> Dict[str, bool]:
+        """Get available data sources"""
+        if self.unified_loader:
+            return self.unified_loader.get_available_sources()
+        return {"files": False, "api": False}
+    
+    def get_api_status(self) -> Dict[str, bool]:
+        """Get API endpoint status"""
+        if self.unified_loader:
+            return self.unified_loader.get_api_status()
+        return {}
 
 # Initialize service
 data_service = DataService()
@@ -148,7 +145,7 @@ async def load_from_api(
 async def load_hybrid(
     data_dir: str = Query(..., description="Directory for file fallback"),
     api_config: Dict[str, Any] = None,
-    source: str = Query("auto", description="Data source: files, api, or auto"),
+    source: str = Query("auto", description="Data source: files, api, auto, or hybrid"),
     trade_ids: Optional[List[str]] = None,
     date: Optional[str] = None
 ):
@@ -162,7 +159,7 @@ async def load_hybrid(
             "data_shape": df.shape,
             "validation": validation,
             "source_used": source,
-            "message": f"Loaded {len(df)} trades using hybrid approach"
+            "message": f"Loaded {len(df)} trades using {source} approach"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -184,8 +181,12 @@ async def validate_data(data: Dict[str, Any]):
 @app.get("/sources/available")
 async def get_available_sources():
     """Get available data sources"""
+    sources = data_service.get_available_sources()
+    api_status = data_service.get_api_status()
+    
     return {
-        "sources": ["files", "api", "hybrid"],
+        "sources": sources,
+        "api_status": api_status,
         "file_formats": ["xlsx", "csv"],
         "api_endpoints": ["pricing", "metadata", "funding"]
     }
