@@ -203,7 +203,7 @@ cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
 ### Model Training
 
 1. **Label Source**: Rule-based diagnoses from `AnalyzerAgent`
-2. **Model Selection**: Change `LightGBMClassifier` to other algorithms
+2. **Algorithm**: LightGBM (gradient boosting)
 3. **Categorical Handling**: Native LightGBM categorical features
 4. **Validation**: Uses all available data for training
 
@@ -213,6 +213,41 @@ cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
 2. Prepare features (same as training)
 3. Generate predictions
 4. Decode labels back to human-readable diagnoses
+
+### Why LightGBM?
+
+We chose **LightGBM** as our primary ML model for the following reasons:
+
+#### **🚀 Performance Advantages:**
+- **Speed**: LightGBM is significantly faster than CatBoost and XGBoost for both training and prediction
+- **Memory Efficiency**: Uses histogram-based algorithm requiring less memory
+- **Scalability**: Handles large datasets (100M+ records) efficiently
+
+#### **📊 Technical Benefits:**
+- **Native Categorical Support**: Handles categorical features without preprocessing
+- **Gradient-based One-Side Sampling (GOSS)**: Reduces training time while maintaining accuracy
+- **Exclusive Feature Bundling (EFB)**: Reduces memory usage and speeds up training
+- **Leaf-wise Tree Growth**: More efficient than level-wise growth
+
+#### **🏢 Business Benefits:**
+- **Real-time Predictions**: Fast inference for live reconciliation workflows
+- **Resource Efficiency**: Lower computational requirements for production deployment
+- **Model Interpretability**: Better feature importance analysis for business insights
+
+#### **Comparison with Alternatives:**
+
+| Model | Speed | Memory | Categorical Support | Scalability | Production Ready |
+|-------|-------|--------|-------------------|-------------|------------------|
+| **LightGBM** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| CatBoost | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| XGBoost | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Random Forest | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+
+#### **Specific Advantages for Reconciliation:**
+- **Financial Data Handling**: Excellent performance on tabular financial data
+- **Categorical Features**: Native support for product types, funding curves, CSA types
+- **Imbalanced Classes**: Handles diagnosis class imbalance effectively
+- **Feature Interactions**: Captures complex relationships in financial data
 
 ## 🔍 Business Rules
 
