@@ -14,7 +14,7 @@ This project implements a modular, agent-based reconciliation engine powered by 
 - 🌐 **REST API Server** for data access and integration
 - 🤖 **ML-powered diagnosis** with CatBoost models
 - 📊 **Interactive Dashboard** with Streamlit
-- 🔄 **Hybrid data loading** (Files + APIs)
+- 🔄 **Unified data loading** (Files + APIs + Auto-detect + Hybrid)
 
 ---
 
@@ -25,9 +25,6 @@ recon-ai/
 ├── crew/
 │   ├── agents/                      # Modular agents
 │   │   ├── unified_data_loader.py  # Unified data loading (files + APIs)
-│   │   ├── data_loader.py          # Legacy file-based loader (deprecated)
-│   │   ├── api_data_loader.py      # Legacy API-based loader (deprecated)
-│   │   ├── hybrid_data_loader.py   # Legacy hybrid loader (deprecated)
 │   │   ├── recon_agent.py          # Mismatch detection
 │   │   ├── analyzer_agent.py       # Rule-based analysis
 │   │   ├── ml_tool.py             # ML diagnosis
@@ -44,6 +41,8 @@ recon-ai/
 ├── api_config_example.json        # API configuration template
 ├── API_DOCUMENTATION.md           # REST API documentation
 ├── MIGRATION_GUIDE.md             # Migration guide for unified loader
+├── UNIFIED_LOADER_SUMMARY.md      # Detailed analysis of unified loader
+├── CLEANUP_SUMMARY.md             # Summary of deprecated files removed
 ├── requirements.txt
 └── README.md
 ```
@@ -89,7 +88,10 @@ Configure API endpoints in `api_config_example.json`:
 }
 ```
 
-#### **Option C: Hybrid (Best of Both)**
+#### **Option C: Auto-detect (Smart)**
+Automatically chooses the best available source with fallback.
+
+#### **Option D: Hybrid (Best of Both)**
 Configure both file and API sources for automatic fallback and data merging.
 
 ### 3. 🚀 Run the workflow:
@@ -212,6 +214,7 @@ python test_api_connection.py --config api_config.json
 - **Files**: Upload Excel files directly
 - **API**: Connect to external APIs
 - **Auto-detect**: Automatically choose best source
+- **Hybrid**: Combine multiple sources
 
 ### **Interactive Visualizations:**
 - Mismatch distribution charts
@@ -232,9 +235,7 @@ python test_api_connection.py --config api_config.json
 
 | Agent | Role | Data Source |
 |-------|------|-------------|
-| **DataLoaderAgent** | Loads and merges pricing, trade, and funding data | Files |
-| **APIDataLoaderAgent** | Fetches data from external APIs | APIs |
-| **HybridDataLoaderAgent** | Combines file and API loading with fallback | Files + APIs |
+| **UnifiedDataLoaderAgent** | Loads and merges pricing, trade, and funding data | Files, APIs, Auto-detect, Hybrid |
 | **ReconAgent** | Flags mismatches in PV and Delta values | All |
 | **AnalyzerAgent** | Provides funding-aware diagnostic tags | All |
 | **MLDiagnoserAgent** | ML-powered diagnosis predictions | All |
@@ -310,6 +311,9 @@ api_config = {
 - 🏗️ [Architecture](docs/ARCHITECTURE.md) - System design and components
 - 🔧 [API Reference](docs/API_REFERENCE.md) - Complete API documentation
 - 📊 [Diagrams](docs/DIAGRAMS.md) - System diagrams and flowcharts
+- 🔄 [Migration Guide](MIGRATION_GUIDE.md) - Guide for unified data loader
+- 📋 [Unified Loader Summary](UNIFIED_LOADER_SUMMARY.md) - Detailed analysis
+- 🧹 [Cleanup Summary](CLEANUP_SUMMARY.md) - Summary of removed files
 
 ### **Testing:**
 ```bash

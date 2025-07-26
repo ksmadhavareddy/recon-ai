@@ -15,6 +15,7 @@ pip install -r requirements.txt
 
 ### 2. Prepare Your Data
 
+#### **Option A: File-based Data**
 Place your input files in the `data/` directory:
 
 ```
@@ -25,10 +26,49 @@ data/
 └── funding_model_reference.xlsx  # Funding information
 ```
 
+#### **Option B: API-based Data**
+Configure API endpoints in `api_config.json`:
+
+```json
+{
+  "base_url": "https://api.example.com",
+  "api_key": "your_api_key_here",
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  }
+}
+```
+
 ### 3. Run the Pipeline
 
+#### **Basic Usage:**
 ```bash
+# Auto-detect (default) - tries API first, falls back to files
 python pipeline.py
+
+# File-based only
+python pipeline.py --source files
+
+# API-based only
+python pipeline.py --source api --api-config api_config.json
+
+# Hybrid - loads from both sources and merges
+python pipeline.py --source hybrid --api-config api_config.json
+```
+
+#### **Advanced Usage:**
+```bash
+# With specific trade IDs
+python pipeline.py --source api --api-config api_config.json --trade-ids TRADE001 TRADE002
+
+# With specific date
+python pipeline.py --source api --api-config api_config.json --date 2024-01-15
+
+# With custom data directory
+python pipeline.py --source files --data-dir /path/to/data
 ```
 
 ### 4. Check Results
@@ -98,106 +138,126 @@ T002     0.030        Securities      Variation
 T003     0.020        Cash            Initial
 ```
 
-### Configuration
+### Data Source Options
 
-#### Threshold Configuration
+The unified data loader supports four different source modes:
 
-Edit `crew/agents/recon_agent.py` to adjust mismatch thresholds:
+#### **1. Files (`--source files`)**
+- Loads data from Excel files in the data directory
+- Fastest option for local development
+- Requires all files to be present
 
-```python
-class ReconAgent:
-    def __init__(self, pv_tolerance=1000, delta_tolerance=0.05):
-        self.pv_tolerance = pv_tolerance  # Adjust PV threshold
-        self.delta_tolerance = delta_tolerance  # Adjust Delta threshold
+#### **2. API (`--source api`)**
+- Fetches data from external API endpoints
+- Requires valid API configuration
+- Supports filtering by trade IDs and dates
+
+#### **3. Auto-detect (`--source auto` or default)**
+- Automatically chooses the best available source
+- Tries API first, falls back to files if API fails
+- Most user-friendly option
+
+#### **4. Hybrid (`--source hybrid`)**
+- Loads from both file and API sources
+- Merges data from multiple sources
+- Provides redundancy and data validation
+
+### Command Line Options
+
+```bash
+python pipeline.py [OPTIONS]
+
+Options:
+  --source TEXT           Data source: files, api, auto, hybrid [default: auto]
+  --data-dir TEXT         Directory containing Excel files [default: data/]
+  --api-config TEXT       Path to API configuration file
+  --trade-ids TEXT        Specific trade IDs to filter (space-separated)
+  --date TEXT            Specific date for API filtering (YYYY-MM-DD)
+  --help                 Show this help message
 ```
 
-#### ML Model Configuration
+### API Configuration
 
-Edit `crew/agents/ml_tool.py` to adjust ML settings:
+Create an API configuration file (e.g., `api_config.json`):
 
-```python
-class MLDiagnoserAgent:
-    def __init__(self, model_path="models/catboost_diagnoser.pkl"):
-        self.model_path = model_path  # Change model location
+```json
+{
+  "base_url": "https://api.example.com",
+  "api_key": "your_api_key_here",
+  "timeout": 30,
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  }
+}
 ```
 
-### Advanced Usage
+### Web Dashboard
 
-#### Custom Business Rules
+Launch the interactive Streamlit dashboard:
 
-Edit `crew/agents/analyzer_agent.py` to add custom business rules:
+```bash
+# Using the wrapper script
+python run_dashboard.py
 
-```python
-def rule_based_diagnosis(self, row):
-    # Add your custom rules here
-    if row.get("YourCondition"):
-        return "Your custom diagnosis"
-    # ... existing rules
-    return "Within tolerance"
+# Or directly with streamlit
+streamlit run app.py
 ```
 
-#### Custom ML Features
+The dashboard provides:
+- Real-time data loading and processing
+- Interactive visualizations
+- API connection status monitoring
+- Export capabilities
 
-Edit `crew/agents/ml_tool.py` to add custom features:
+### REST API Server
 
-```python
-def prepare_features_and_labels(self, df):
-    feature_cols = [
-        'PV_old', 'PV_new', 'Delta_old', 'Delta_new',
-        'ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion',
-        'YourCustomFeature'  # Add your custom features
-    ]
-    # ... rest of the method
+Start the REST API server for external integrations:
+
+```bash
+# Start the server
+python api_server.py
+
+# Test the API
+python api_client.py
 ```
 
-#### Custom Report Format
+## Output Analysis
 
-Edit `crew/agents/narrator_agent.py` to customize report output:
-
-```python
-def save_report(self, df, output_path="final_recon_report.xlsx"):
-    cols = [
-        "TradeID", "PV_old", "PV_new", "PV_Diff",
-        "Delta_old", "Delta_new", "Delta_Diff",
-        "ProductType", "FundingCurve", "CSA_Type", "ModelVersion",
-        "PV_Mismatch", "Delta_Mismatch", "Diagnosis", "ML_Diagnosis",
-        "YourCustomColumn"  # Add your custom columns
-    ]
-    df.to_excel(output_path, index=False, columns=cols)
-```
-
-## Output Interpretation
-
-### Excel Report Analysis
+### Excel Report Structure
 
 The `final_recon_report.xlsx` contains:
 
-#### Mismatch Analysis
-- **PV_Mismatch**: True if |PV_new - PV_old| > threshold
-- **Delta_Mismatch**: True if |Delta_new - Delta_old| > threshold
-- **Any_Mismatch**: True if either PV or Delta mismatch
+#### **Original Data**
+- `TradeID`: Unique trade identifier
+- `PV_old`, `PV_new`: Present values from old/new models
+- `Delta_old`, `Delta_new`: Delta risk from old/new models
 
-#### Diagnosis Comparison
-- **Diagnosis**: Rule-based business logic diagnosis
-- **ML_Diagnosis**: Machine learning prediction
+#### **Mismatch Analysis**
+- `PV_Diff`, `Delta_Diff`: Absolute differences
+- `PV_Mismatch`, `Delta_Mismatch`: Boolean flags for mismatches
+- `Any_Mismatch`: Overall mismatch indicator
 
-#### Key Metrics to Monitor
-- **Total Trades**: Number of trades processed
-- **PV Mismatches**: Number of PV mismatches
-- **Delta Mismatches**: Number of Delta mismatches
-- **Flagged Trades**: Total trades with any mismatch
+#### **Diagnoses**
+- `PV_Diagnosis`, `Delta_Diagnosis`: Rule-based root cause analysis
+- `ML_Diagnosis`: Machine learning predictions
 
-### Understanding Diagnoses
+### Business Rules
 
-#### Rule-based Diagnoses
-- **"New trade – no prior valuation"**: Trade exists only in new data
-- **"Trade dropped from new model"**: Trade exists only in old data
-- **"Legacy LIBOR curve with outdated model"**: LIBOR curve with old model version
-- **"CSA changed post-clearing"**: CSA type changed affecting funding
-- **"Vol sensitivity likely"**: Option with Delta mismatch
-- **"Within tolerance"**: No significant issues detected
+The system applies the following diagnostic rules:
 
-#### ML Diagnoses
+| Condition | Diagnosis |
+|-----------|-----------|
+| `PV_old` is None | "New trade – no prior valuation" |
+| `PV_new` is None | "Trade dropped from new model" |
+| Legacy LIBOR + outdated model | "Legacy LIBOR curve with outdated model – PV likely shifted" |
+| CSA changed post-clearing | "CSA changed post-clearing – funding basis moved" |
+| Option + Delta mismatch | "Vol sensitivity likely – delta impact due to model curve shift" |
+| Default | "Within tolerance" |
+
+#### **ML Diagnoses**
 The ML model learns patterns from rule-based diagnoses and may identify:
 - Complex interactions between features
 - Non-obvious patterns in the data
@@ -234,19 +294,28 @@ FileNotFoundError: [Errno 2] No such file or directory: 'data/old_pricing.xlsx'
 ```
 **Solution**: Ensure all required files are in the `data/` directory
 
-#### 3. Data Type Errors
+#### 3. API Connection Issues
+```
+ConnectionError: Failed to connect to API endpoint
+```
+**Solution**: 
+- Verify API configuration in `api_config.json`
+- Check network connectivity
+- Use `--source files` as fallback
+
+#### 4. Data Type Errors
 ```
 TypeError: Cannot convert 'Swap' to float
 ```
 **Solution**: Ensure categorical features are properly handled (already fixed in current version)
 
-#### 4. Memory Issues
+#### 5. Memory Issues
 ```
 MemoryError: Unable to allocate array
 ```
 **Solution**: Process data in smaller chunks or increase system memory
 
-#### 5. Model Loading Errors
+#### 6. Model Loading Errors
 ```
 FileNotFoundError: [Errno 2] No such file or directory: 'models/catboost_diagnoser.pkl'
 ```
@@ -291,6 +360,12 @@ def validate_input_files(data_dir):
 3. **Data Validation**: Verify data types and ranges
 4. **Backup**: Keep backups of original data files
 
+### API Configuration
+1. **Secure Keys**: Store API keys securely, not in version control
+2. **Error Handling**: Implement proper fallback mechanisms
+3. **Rate Limiting**: Respect API rate limits
+4. **Monitoring**: Monitor API connection status
+
 ### Model Management
 1. **Version Control**: Track model versions and performance
 2. **Regular Retraining**: Retrain models with new data
@@ -319,11 +394,34 @@ cp your_new_pricing.xlsx data/new_pricing.xlsx
 cp your_metadata.xlsx data/trade_metadata.xlsx
 cp your_funding.xlsx data/funding_model_reference.xlsx
 
-# 2. Run pipeline
+# 2. Run pipeline with auto-detect
 python pipeline.py
 
 # 3. Check results
 ls -la final_recon_report.xlsx
+```
+
+### API Example
+```bash
+# 1. Create API configuration
+cat > api_config.json << EOF
+{
+  "base_url": "https://api.example.com",
+  "api_key": "your_key_here",
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  }
+}
+EOF
+
+# 2. Run with API source
+python pipeline.py --source api --api-config api_config.json
+
+# 3. Run with specific trade IDs
+python pipeline.py --source api --api-config api_config.json --trade-ids TRADE001 TRADE002
 ```
 
 ### Custom Threshold Example

@@ -13,35 +13,35 @@ graph TB
         B[new_pricing.xlsx]
         C[trade_metadata.xlsx]
         D[funding_model_reference.xlsx]
+        E[API Endpoints]
     end
     
     subgraph "Agent Layer"
-        E[DataLoaderAgent]
-        F[ReconAgent]
-        G[AnalyzerAgent]
-        H[MLDiagnoserAgent]
-        I[NarratorAgent]
+        F[UnifiedDataLoaderAgent]
+        G[ReconAgent]
+        H[AnalyzerAgent]
+        I[MLDiagnoserAgent]
+        J[NarratorAgent]
     end
     
     subgraph "Data Processing"
-        J[Merged DataFrame]
-        K[Flagged Mismatches]
-        L[Rule-based Diagnoses]
-        M[ML Predictions]
+        K[Merged DataFrame]
+        L[Flagged Mismatches]
+        M[Rule-based Diagnoses]
+        N[ML Predictions]
     end
     
     subgraph "Output Layer"
-        N[Excel Report]
-        O[Trained ML Model]
-        P[Summary Statistics]
+        O[Excel Report]
+        P[Trained ML Model]
+        Q[Summary Statistics]
     end
     
-    A --> E
-    B --> E
-    C --> E
-    D --> E
-    E --> J
-    J --> F
+    A --> F
+    B --> F
+    C --> F
+    D --> F
+    E --> F
     F --> K
     K --> G
     G --> L
@@ -49,18 +49,21 @@ graph TB
     H --> M
     M --> I
     I --> N
+    N --> J
+    J --> O
+    J --> Q
     I --> P
-    H --> O
 ```
 
 ## Data Flow Architecture
 
 ### Phase 1: Data Ingestion
 ```
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Excel Files │  │ DataLoader  │  │ Merged      │
-│ (4 files)   │─▶│ Agent       │─▶│ DataFrame   │
-└─────────────┘  └─────────────┘  └─────────────┘
+┌─────────────┐  ┌─────────────────────┐  ┌─────────────┐
+│ Input       │  │ UnifiedDataLoader   │  │ Merged      │
+│ Sources     │─▶│ Agent               │─▶│ DataFrame   │
+│ (Files/API) │  │ (Auto-detect)       │  │             │
+└─────────────┘  └─────────────────────┘  └─────────────┘
 ```
 
 ### Phase 2: Mismatch Detection
@@ -95,265 +98,315 @@ graph TB
 
 ## Agent Architecture Details
 
-### DataLoaderAgent
-**Purpose**: Data ingestion and preprocessing
-**Input**: Multiple Excel files
-**Output**: Single merged DataFrame
-**Key Methods**:
-- `load_all_data()`: Merges all input files on TradeID
+### UnifiedDataLoaderAgent
+**Purpose**: Unified data ingestion and preprocessing
+**Input**: Multiple Excel files and/or API endpoints
+**Output**: Merged DataFrame with all required data
+**Key Features**:
+- **Multi-source loading**: Files, APIs, auto-detect, hybrid
+- **Automatic fallback**: API → Files fallback mechanism
+- **Data validation**: Quality checks and error handling
+- **Flexible filtering**: Trade IDs and date filtering
+- **Consistent interface**: Single `load_data()` method
+
+**Source Options**:
+- `"files"` - Load from Excel files only
+- `"api"` - Load from API endpoints only
+- `"auto"` - Auto-detect best available source (default)
+- `"hybrid"` - Load from both sources and merge
 
 ### ReconAgent
-**Purpose**: Mismatch detection using configurable thresholds
-**Input**: Merged DataFrame
+**Purpose**: Mismatch detection and flagging
+**Input**: Merged DataFrame from UnifiedDataLoaderAgent
 **Output**: DataFrame with mismatch flags
-**Key Methods**:
-- `add_diff_flags(df)`: Adds PV_Mismatch, Delta_Mismatch flags
-**Configuration**:
-- `pv_tolerance = 1000`
-- `delta_tolerance = 0.05`
+**Key Features**:
+- **Configurable thresholds**: PV and Delta tolerance settings
+- **Boolean flags**: PV_Mismatch, Delta_Mismatch, Any_Mismatch
+- **Difference calculation**: PV_Diff, Delta_Diff columns
 
 ### AnalyzerAgent
-**Purpose**: Rule-based root cause analysis
-**Input**: Flagged DataFrame
-**Output**: DataFrame with business diagnoses
-**Key Methods**:
-- `rule_based_diagnosis(row)`: Applies business rules
-- `apply(df)`: Processes entire DataFrame
+**Purpose**: Rule-based business logic diagnosis
+**Input**: Flagged data from ReconAgent
+**Output**: Rule-based diagnoses
+**Key Features**:
+- **Domain-specific rules**: Funding-aware diagnostics
+- **Business logic**: LIBOR, CSA, model version analysis
+- **Comprehensive coverage**: All common mismatch scenarios
 
 ### MLDiagnoserAgent
-**Purpose**: Machine learning-based diagnosis prediction
-**Input**: Training data (rule-based diagnoses as labels)
+**Purpose**: Machine learning diagnosis prediction
+**Input**: Training data and features
 **Output**: ML predictions and trained model
-**Key Methods**:
-- `train(df)`: Trains CatBoost model
-- `predict(df)`: Generates ML predictions
-- `save_model()`: Persists trained model
-- `load_model()`: Loads existing model
+**Key Features**:
+- **CatBoost model**: Gradient boosting with categorical features
+- **Automatic training**: Uses rule-based diagnoses as labels
+- **Model persistence**: Saves trained model for reuse
+- **Feature engineering**: PV/Delta values and metadata
 
 ### NarratorAgent
 **Purpose**: Report generation and summarization
-**Input**: Complete DataFrame with all analyses
+**Input**: All analysis results
 **Output**: Excel report and summary statistics
-**Key Methods**:
-- `summarize_report(df)`: Generates summary statistics
-- `save_report(df)`: Creates Excel output file
+**Key Features**:
+- **Excel export**: Comprehensive reconciliation report
+- **Summary statistics**: Key metrics and insights
+- **Formatted output**: Professional report structure
+
+## Data Architecture
+
+### Input Data Structure
+
+#### Excel Files (File-based Loading)
+```
+data/
+├── old_pricing.xlsx          # Previous pricing data
+├── new_pricing.xlsx          # Current pricing data
+├── trade_metadata.xlsx       # Trade characteristics
+└── funding_model_reference.xlsx  # Funding information
+```
+
+#### API Endpoints (API-based Loading)
+```json
+{
+  "base_url": "https://api.example.com",
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  }
+}
+```
+
+### Data Merging Strategy
+
+The UnifiedDataLoaderAgent implements a robust merging strategy:
+
+```python
+# Core merging logic
+df = old.merge(new, on="TradeID", how="outer", suffixes=('_old', '_new'))
+df = df.merge(meta, on="TradeID", how="left")
+df = df.merge(funding, on="TradeID", how="left")
+```
+
+**Merging Features**:
+- **Outer joins**: Preserves all trades from both old and new data
+- **Left joins**: Adds metadata and funding information
+- **Suffix handling**: Prevents column name conflicts
+- **Missing value handling**: Graceful handling of incomplete data
+
+### Output Data Structure
+
+#### Excel Report Columns
+```python
+[
+    "TradeID",           # Unique trade identifier
+    "PV_old", "PV_new",  # Present values
+    "Delta_old", "Delta_new",  # Delta risk measures
+    "PV_Diff", "Delta_Diff",   # Absolute differences
+    "PV_Mismatch", "Delta_Mismatch",  # Boolean flags
+    "Any_Mismatch",      # Overall mismatch indicator
+    "ProductType", "FundingCurve", "CSA_Type", "ModelVersion",  # Metadata
+    "PV_Diagnosis", "Delta_Diagnosis",  # Rule-based diagnoses
+    "ML_Diagnosis"       # Machine learning predictions
+]
+```
+
+## API Architecture
+
+### REST API Server
+
+The system includes a FastAPI-based REST API server for external integrations:
+
+#### **Core Endpoints**
+- `GET /api/health` - Health check and status
+- `GET /api/excel` - List available Excel files
+- `GET /api/excel/{filename}` - Download specific Excel file
+- `GET /api/database` - List database tables
+- `GET /api/database/{table}` - Query specific table
+- `GET /api/merged` - Get merged reconciliation data
+- `GET /api/search` - Search across tables and columns
+
+#### **Features**
+- **SQLite database**: Persistent storage for API data
+- **CORS support**: Web application integration
+- **Auto-generated docs**: Interactive API documentation
+- **Pagination**: Handle large datasets efficiently
+- **Search capabilities**: Full-text search across data
+
+### External API Integration
+
+The UnifiedDataLoaderAgent supports external API integration:
+
+#### **Configuration**
+```json
+{
+  "base_url": "https://api.example.com",
+  "api_key": "your_api_key",
+  "timeout": 30,
+  "endpoints": {
+    "old_pricing": "/api/v1/pricing/old",
+    "new_pricing": "/api/v1/pricing/new",
+    "trade_metadata": "/api/v1/trades/metadata",
+    "funding_reference": "/api/v1/funding/reference"
+  }
+}
+```
+
+#### **Features**
+- **Authentication**: API key and Bearer token support
+- **Error handling**: Graceful failure and fallback
+- **Connection pooling**: Efficient HTTP session management
+- **Data validation**: Quality checks for API responses
+- **Filtering**: Trade ID and date-based filtering
 
 ## ML Model Architecture
 
-### Feature Engineering Pipeline
+### Feature Engineering
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Feature Engineering                      │
-├─────────────────────────────────────────────────────────────┤
-│ Numerical Features:                                        │
-│ • PV_old, PV_new (Present Values)                         │
-│ • Delta_old, Delta_new (Risk Measures)                    │
-│                                                           │
-│ Categorical Features:                                      │
-│ • ProductType (Swap, Option, etc.)                        │
-│ • FundingCurve (USD-LIBOR, SOFR, etc.)                    │
-│ • CSA_Type (Cleared_CSA, Bilateral, etc.)                 │
-│ • ModelVersion (v2024.3, v2024.2, etc.)                   │
-└─────────────────────────────────────────────────────────────┘
-```
+#### **Numerical Features**
+- `PV_old`, `PV_new` - Present values from old/new models
+- `Delta_old`, `Delta_new` - Delta risk measures
+- `PV_Diff`, `Delta_Diff` - Absolute differences
+
+#### **Categorical Features**
+- `ProductType` - Financial product type (Swap, Option, etc.)
+- `FundingCurve` - Funding curve identifier (LIBOR, SOFR, etc.)
+- `CSA_Type` - Credit Support Annex type
+- `ModelVersion` - Model version identifier
 
 ### Model Training Process
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Model Training                          │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Feature Preparation                                     │
-│    • Select relevant columns                              │
-│    • Handle missing values                                │
-│    • Encode categorical features                          │
-│                                                           │
-│ 2. Label Preparation                                      │
-│    • Use rule-based diagnoses as labels                  │
-│    • Encode labels using LabelEncoder                     │
-│                                                           │
-│ 3. Model Training                                         │
-│    • Initialize CatBoostClassifier                        │
-│    • Specify categorical feature indices                  │
-│    • Fit model to training data                           │
-│                                                           │
-│ 4. Model Persistence                                      │
-│    • Save model and label encoder                         │
-│    • Store in models/ directory                           │
-└─────────────────────────────────────────────────────────────┘
-```
+1. **Data Preparation**: Load and merge all required data
+2. **Feature Engineering**: Extract numerical and categorical features
+3. **Label Encoding**: Convert rule-based diagnoses to numerical labels
+4. **Model Training**: Train CatBoost classifier
+5. **Model Persistence**: Save trained model for future use
 
-### Prediction Pipeline
+### Prediction Process
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Prediction Pipeline                     │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Model Loading                                          │
-│    • Load trained CatBoost model                          │
-│    • Load label encoder                                   │
-│                                                           │
-│ 2. Feature Preparation                                    │
-│    • Apply same preprocessing as training                 │
-│    • Handle new categorical values                        │
-│                                                           │
-│ 3. Prediction Generation                                  │
-│    • Generate raw predictions                             │
-│    • Decode using label encoder                          │
-│                                                           │
-│ 4. Result Integration                                     │
-│    • Add ML_Diagnosis column to DataFrame                │
-│    • Compare with rule-based diagnoses                   │
-└─────────────────────────────────────────────────────────────┘
+1. **Model Loading**: Load trained CatBoost model
+2. **Feature Preparation**: Prepare features for new data
+3. **Prediction**: Generate ML predictions
+4. **Label Decoding**: Convert numerical predictions back to diagnoses
+
+### Model Performance
+
+- **Training Time**: <1 second for typical datasets
+- **Prediction Time**: <0.1 second per trade
+- **Model Size**: ~1MB (CatBoost model)
+- **Accuracy**: Depends on data quality and feature relevance
+
+## System Integration
+
+### Command Line Interface
+
+The `pipeline.py` script provides a flexible command-line interface:
+
+```bash
+# Basic usage with auto-detect
+python pipeline.py
+
+# File-based loading
+python pipeline.py --source files
+
+# API-based loading
+python pipeline.py --source api --api-config config.json
+
+# Hybrid loading
+python pipeline.py --source hybrid --api-config config.json
+
+# With filtering
+python pipeline.py --source api --api-config config.json --trade-ids TRADE001 TRADE002
 ```
 
-## Data Schema
+### Web Dashboard
 
-### Input Data Schema
+The Streamlit dashboard provides interactive visualization:
 
-**old_pricing.xlsx**
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| PV_old | Float | Present value (old model) |
-| Delta_old | Float | Delta risk (old model) |
+#### **Features**
+- **Real-time processing**: Live data loading and analysis
+- **Interactive charts**: Mismatch distribution and trends
+- **API monitoring**: Connection status and health checks
+- **Export capabilities**: Download reports and visualizations
 
-**new_pricing.xlsx**
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| PV_new | Float | Present value (new model) |
-| Delta_new | Float | Delta risk (new model) |
+#### **Components**
+- **Data source selection**: Files, API, auto-detect, hybrid
+- **Visualization panels**: Charts, tables, and statistics
+- **Configuration panels**: Threshold and parameter settings
+- **Status monitoring**: System health and progress indicators
 
-**trade_metadata.xlsx**
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| ProductType | String | Financial product type |
-| FundingCurve | String | Funding curve identifier |
-| CSA_Type | String | Credit Support Annex type |
-| ModelVersion | String | Model version identifier |
+### Service Integration
 
-**funding_model_reference.xlsx**
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| Additional funding-related fields | Various | Funding model parameters |
+The system can be integrated with external services:
 
-### Output Data Schema
+#### **Data Services**
+- **Database integration**: SQLite, PostgreSQL, MySQL
+- **Cloud storage**: AWS S3, Azure Blob, Google Cloud Storage
+- **Message queues**: Redis, RabbitMQ, Apache Kafka
 
-**final_recon_report.xlsx**
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| PV_old, PV_new | Float | Present values |
-| Delta_old, Delta_new | Float | Delta risk measures |
-| PV_Diff, Delta_Diff | Float | Differences |
-| PV_Mismatch, Delta_Mismatch | Boolean | Mismatch flags |
-| ProductType, FundingCurve, CSA_Type, ModelVersion | String | Trade characteristics |
-| Diagnosis | String | Rule-based diagnosis |
-| ML_Diagnosis | String | ML-based diagnosis |
+#### **Monitoring & Alerting**
+- **Health checks**: API endpoints and system status
+- **Performance metrics**: Processing time and throughput
+- **Error tracking**: Logging and alerting for issues
 
 ## Performance Characteristics
 
-### Processing Performance
-- **Data Loading**: ~1000 trades/second
-- **Mismatch Detection**: ~5000 trades/second
-- **Rule-based Analysis**: ~2000 trades/second
-- **ML Training**: ~1-5 seconds (depending on data size)
-- **ML Prediction**: ~10000 trades/second
-
-### Memory Usage
-- **Peak Memory**: ~2x data size (for merged DataFrame)
-- **Model Size**: ~1MB (CatBoost model)
-- **Report Size**: ~data size + analysis columns
-
 ### Scalability
-- **Linear Scaling**: Performance scales linearly with data size
-- **Memory Efficient**: Processes data in chunks if needed
-- **Model Persistence**: Trained model can be reused
+
+- **Linear scaling**: Performance scales linearly with data size
+- **Memory efficient**: In-memory processing with minimal overhead
+- **Parallel processing**: Potential for multi-threading large datasets
+- **Caching**: Model persistence and data caching
+
+### Optimization
+
+- **Efficient merging**: Optimized pandas operations
+- **Lazy loading**: Load data only when needed
+- **Compression**: Excel file compression for storage
+- **Indexing**: Database indexing for fast queries
+
+### Resource Requirements
+
+- **CPU**: Minimal requirements for typical datasets
+- **Memory**: Scales with data size (typically <1GB for 10K trades)
+- **Storage**: Excel files + SQLite database
+- **Network**: HTTP requests for API integration
 
 ## Security Considerations
 
-### Data Security
-- **Local Processing**: All data processed locally
-- **No External APIs**: No data sent to external services
-- **File-based I/O**: Uses standard file operations
+### Data Protection
 
-### Model Security
-- **Model Validation**: Ensures model integrity before loading
-- **Version Control**: Model versioning for reproducibility
-- **Backup Strategy**: Model backups for disaster recovery
+- **API key management**: Secure storage of authentication credentials
+- **Data encryption**: HTTPS for API communications
+- **Access control**: API key-based authentication
+- **Audit logging**: Track data access and modifications
 
-## Error Handling
+### Best Practices
 
-### Data Validation
-- **Missing Values**: Handled gracefully with appropriate defaults
-- **Data Type Validation**: Ensures correct data types
-- **Schema Validation**: Validates input file structure
+- **Secure configuration**: Environment variables for sensitive data
+- **Input validation**: Validate all external data
+- **Error handling**: Graceful failure without data exposure
+- **Regular updates**: Keep dependencies updated
 
-### Model Robustness
-- **Feature Validation**: Ensures required features are present
-- **Prediction Confidence**: Can add confidence scores
-- **Fallback Mechanisms**: Rule-based fallback if ML fails
+## Future Enhancements
 
-## Monitoring and Logging
+### Planned Improvements
 
-### System Monitoring
-- **Progress Tracking**: Step-by-step progress indicators
-- **Performance Metrics**: Processing time and throughput
-- **Error Reporting**: Detailed error messages and stack traces
+1. **Real-time Processing**: Stream processing for live data
+2. **Advanced ML**: Deep learning and ensemble methods
+3. **Cloud Deployment**: Containerization and cloud services
+4. **Advanced Analytics**: Statistical modeling and forecasting
+5. **Mobile Support**: Mobile app for on-the-go monitoring
 
-### Quality Assurance
-- **Data Quality Checks**: Validates input data quality
-- **Model Performance**: Tracks prediction accuracy
-- **Result Validation**: Ensures output consistency
+### Technical Roadmap
 
-## Deployment Architecture
+1. **Microservices**: Break down into smaller, focused services
+2. **Database Migration**: Move from SQLite to production database
+3. **API Versioning**: Versioned API endpoints
+4. **Performance Monitoring**: Advanced metrics and alerting
+5. **Automated Testing**: Comprehensive test suite
 
-### Local Deployment
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Local Environment                       │
-├─────────────────────────────────────────────────────────────┤
-│ • Python 3.8+                                             │
-│ • Required packages (see requirements.txt)                │
-│ • Input data files in data/ directory                     │
-│ • Output reports in project root                          │
-│ • Trained models in models/ directory                     │
-└─────────────────────────────────────────────────────────────┘
-```
+---
 
-### Production Considerations
-- **Containerization**: Docker for consistent environments
-- **Resource Management**: Memory and CPU optimization
-- **Logging**: Structured logging for monitoring
-- **Error Handling**: Robust error handling and recovery
-- **Performance Tuning**: Optimize for production workloads
-
-## Future Architecture Enhancements
-
-### Microservices Architecture
-```
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Data        │  │ Processing  │  │ ML          │
-│ Service     │  │ Service     │  │ Service     │
-└─────────────┘  └─────────────┘  └─────────────┘
-       │                │                │
-       └────────────────┼────────────────┘
-                        │
-                ┌─────────────┐
-                │ API Gateway │
-                └─────────────┘
-```
-
-### Real-time Processing
-- **Stream Processing**: Apache Kafka for real-time data
-- **Event-driven Architecture**: React to data changes
-- **Caching Layer**: Redis for performance optimization
-
-### Cloud Deployment
-- **AWS/GCP/Azure**: Cloud-native deployment
-- **Auto-scaling**: Handle variable workloads
-- **Managed Services**: Use cloud ML services 
+**🏗️ Architecture designed for scalability, maintainability, and extensibility** 
