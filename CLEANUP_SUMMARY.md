@@ -22,7 +22,7 @@ After implementing the unified data loader, the following deprecated files have 
 - **`test_api_connection.py`** - Updated to use `UnifiedDataLoaderAgent`
 
 ### 2. Documentation
-- **`MIGRATION_GUIDE.md`** - Contains references to old classes for migration purposes
+- **`UNIFIED_LOADER.md`** - Contains references to old classes for migration purposes
 - **`README.md`** - Updated to reflect unified approach
 
 ## Code Reduction
