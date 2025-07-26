@@ -40,8 +40,7 @@ recon-ai/
 ├── test_api_connection.py         # API testing utility
 ├── api_config_example.json        # API configuration template
 ├── API_DOCUMENTATION.md           # REST API documentation
-├── UNIFIED_LOADER.md              # Unified data loader guide
-├── UNIFIED_LOADER_SUMMARY.md      # Detailed analysis of unified loader
+├── UNIFIED_LOADER.md              # Comprehensive unified data loader guide
 ├── CLEANUP_SUMMARY.md             # Summary of deprecated files removed
 ├── requirements.txt
 └── README.md
@@ -368,7 +367,6 @@ api_config = {
 - 🔧 [API Reference](docs/API_REFERENCE.md) - Complete API documentation
 - 📊 [Diagrams](docs/DIAGRAMS.md) - System diagrams and flowcharts
 - 🔄 [Migration Guide](UNIFIED_LOADER.md) - Guide for unified data loader
-- 📋 [Unified Loader Summary](UNIFIED_LOADER_SUMMARY.md) - Detailed analysis
 - 🧹 [Cleanup Summary](CLEANUP_SUMMARY.md) - Summary of removed files
 
 ### **Testing:**

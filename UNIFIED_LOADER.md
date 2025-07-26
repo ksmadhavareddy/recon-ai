@@ -2,16 +2,80 @@
 
 ## Overview
 
-The reconciliation system uses a **unified data loader** (`UnifiedDataLoaderAgent`) that handles file-based, API-based, and hybrid loading through a single, maintainable class. This guide covers how to use the unified data loader effectively.
+The reconciliation system uses a **unified data loader** (`UnifiedDataLoaderAgent`) that handles file-based, API-based, and hybrid loading through a single, maintainable class. This comprehensive guide covers implementation, usage, and best practices for the unified data loader.
 
-## Current Implementation
+## Implementation Architecture
 
-### Unified Data Loader Features
-- `UnifiedDataLoaderAgent` - Handles all data loading scenarios ✅ **ACTIVE**
-- **Single class** with consistent interface
-- **Automatic fallback** and source detection
-- **Cleaner codebase** with optimized merging
-- **Enhanced features** and better error handling
+### Single Class Design
+The `UnifiedDataLoaderAgent` (393 lines) consolidates all data loading functionality:
+
+```python
+class UnifiedDataLoaderAgent:
+    """
+    Unified data loader that can load reconciliation data from files, APIs, or both
+    with automatic fallback and source detection.
+    """
+```
+
+### Key Features
+- **Multi-source support**: Files, APIs, auto-detect, hybrid
+- **Automatic fallback**: Graceful degradation when sources fail
+- **Data validation**: Quality checks and error reporting
+- **Performance optimization**: Efficient merging and memory management
+- **Flexible configuration**: Support for various API and file configurations
+
+## Data Source Options
+
+### 1. File-based Loading (`"files"`)
+- **Purpose**: Load data from Excel files in the data directory
+- **Performance**: 1,000-10,000 trades/second
+- **Use case**: Local development, offline processing
+- **Requirements**: Excel files with required structure
+
+### 2. API-based Loading (`"api"`)
+- **Purpose**: Load data from REST API endpoints
+- **Performance**: 100-1,000 trades/second (network dependent)
+- **Use case**: Production environments, real-time data
+- **Requirements**: Valid API configuration with endpoints
+
+### 3. Auto-detect (`"auto"`)
+- **Purpose**: Automatically choose the best available source
+- **Logic**: Tries API first, falls back to files if API fails
+- **Performance**: Varies based on selected source
+- **Use case**: Flexible deployment, automatic fallback
+
+### 4. Hybrid Loading (`"hybrid"`)
+- **Purpose**: Load from both sources and merge intelligently
+- **Performance**: 500-5,000 trades/second (optimized merging)
+- **Use case**: Data validation, redundancy, comprehensive analysis
+- **Requirements**: Both file and API sources available
+
+## Core Methods
+
+### Primary Interface
+```python
+def load_data(self, source="auto", trade_ids=None, date=None, **kwargs):
+    """
+    Load reconciliation data from specified source
+    
+    Args:
+        source: "files", "api", "auto", or "hybrid"
+        trade_ids: List of trade IDs (for API filtering)
+        date: Specific date (for API filtering)
+        **kwargs: Additional arguments passed to specific loaders
+        
+    Returns:
+        DataFrame with merged reconciliation data
+    """
+```
+
+### Internal Methods
+- `_load_from_files()`: Excel file loading with validation
+- `_load_from_api()`: REST API data fetching with error handling
+- `_load_auto()`: Automatic source detection and fallback
+- `_load_hybrid()`: Intelligent merging of multiple sources
+- `_fetch_from_api()`: Individual API endpoint handling
+- `_merge_dataframes()`: Optimized data merging logic
 
 ## Usage Guide
 
@@ -72,33 +136,7 @@ python pipeline.py --source api --api-config api_config.json --trade-ids TRADE00
 python pipeline.py --source api --api-config api_config.json --date 2024-01-15
 ```
 
-## Data Source Options
-
-### 1. File-based Loading (`"files"`)
-- **Purpose**: Load data from Excel files
-- **Requirements**: Excel files in the data directory
-- **Performance**: 1,000-10,000 trades/second
-- **Use case**: Local development, offline processing
-
-### 2. API-based Loading (`"api"`)
-- **Purpose**: Load data from REST API endpoints
-- **Requirements**: Valid API configuration
-- **Performance**: 100-1,000 trades/second (network dependent)
-- **Use case**: Production environments, real-time data
-
-### 3. Auto-detect (`"auto"`)
-- **Purpose**: Automatically choose the best available source
-- **Logic**: Tries API first, falls back to files if API fails
-- **Performance**: Varies based on selected source
-- **Use case**: Flexible deployment, automatic fallback
-
-### 4. Hybrid Loading (`"hybrid"`)
-- **Purpose**: Load from both sources and merge intelligently
-- **Requirements**: Both file and API sources available
-- **Performance**: 500-5,000 trades/second (optimized merging)
-- **Use case**: Data validation, redundancy, comprehensive analysis
-
-## Configuration
+## Configuration Management
 
 ### API Configuration Format
 
@@ -126,26 +164,6 @@ data/
 └── funding_model_reference.xlsx
 ```
 
-## Advanced Features
-
-### 1. Error Handling
-- **Automatic fallback**: API failures trigger file loading
-- **Graceful degradation**: Missing files don't crash the system
-- **Detailed logging**: Clear error messages for debugging
-- **Data validation**: Quality checks for loaded data
-
-### 2. Performance Optimization
-- **Efficient merging**: Optimized pandas operations
-- **Memory management**: Streamlined data processing
-- **Caching**: Model persistence for faster inference
-- **Batch processing**: Handle large datasets efficiently
-
-### 3. Data Quality
-- **Validation**: Check for required columns and data types
-- **Cleaning**: Handle missing values and duplicates
-- **Summary statistics**: Data quality reports
-- **Error reporting**: Detailed validation results
-
 ## Integration Examples
 
 ### 1. Crew Builder Integration
@@ -163,7 +181,22 @@ df = crew.run(source="auto")            # Auto-detect
 df = crew.run(source="hybrid")          # Hybrid
 ```
 
-### 2. Service Integration
+### 2. Direct Usage
+
+```python
+from crew.agents.unified_data_loader import UnifiedDataLoaderAgent
+
+# Initialize loader
+loader = UnifiedDataLoaderAgent(data_dir="data/", api_config=api_config)
+
+# Load data with different sources
+df = loader.load_data(source="files")
+df = loader.load_data(source="api", trade_ids=["TRADE001", "TRADE002"])
+df = loader.load_data(source="auto")
+df = loader.load_data(source="hybrid")
+```
+
+### 3. Service Integration
 
 ```python
 from services.data_service import DataService
@@ -178,7 +211,7 @@ quality = service.validate_data_quality(df)
 summary = service.get_data_summary(df)
 ```
 
-### 3. Testing Integration
+### 4. Testing Integration
 
 ```python
 from test_api_connection import test_api_connection
@@ -187,6 +220,72 @@ from test_api_connection import test_api_connection
 result = test_api_connection(api_config)
 print(f"API Status: {result}")
 ```
+
+## Advanced Features
+
+### 1. Source Status Monitoring
+```python
+# Get available data sources
+sources = loader.get_available_sources()
+# Returns: {"files": True, "api": True, "auto": True, "hybrid": True}
+
+# Get detailed API status
+api_status = loader.get_api_status()
+# Returns endpoint-by-endpoint status
+```
+
+### 2. Data Quality Validation
+```python
+# Validate data quality
+quality = loader.validate_data_quality(df)
+# Returns detailed validation results
+
+# Get data summary
+summary = loader.get_data_summary(df)
+# Returns statistical summary of the data
+```
+
+### 3. Flexible Configuration
+```python
+# Custom endpoints
+custom_config = {
+    "base_url": "https://custom-api.com",
+    "endpoints": {
+        "old_pricing": "/custom/old-pricing",
+        "new_pricing": "/custom/new-pricing"
+    }
+}
+
+loader = UnifiedDataLoaderAgent(api_config=custom_config)
+```
+
+## Error Handling & Validation
+
+### Robust Error Management
+- **API failures**: Automatic fallback to file-based loading
+- **Missing files**: Graceful degradation with clear error messages
+- **Network issues**: Timeout handling and retry logic
+- **Data validation**: Quality checks for required columns and data types
+
+### Data Quality Features
+- **Column validation**: Ensure required columns are present
+- **Data type checking**: Verify correct data types
+- **Missing value handling**: Intelligent handling of null values
+- **Duplicate detection**: Identify and handle duplicate records
+
+## Performance Optimization
+
+### Efficient Data Processing
+- **Pandas optimization**: Streamlined DataFrame operations
+- **Memory management**: Efficient memory usage for large datasets
+- **Batch processing**: Handle large datasets in manageable chunks
+- **Caching**: Model persistence for faster inference
+
+### Performance Metrics
+- **Data Loading**: 1,000-10,000 trades/second (file-based)
+- **API Fetching**: 100-1,000 trades/second (network dependent)
+- **Data Merging**: 500-5,000 trades/second (optimized)
+- **Memory Usage**: ~1MB per 1,000 trades
 
 ## Performance Characteristics
 
@@ -203,9 +302,36 @@ print(f"API Status: {result}")
 - **Data Size Limits**: Up to 1M trades per file
 
 ### Real-world Performance
-- **Small (<1K trades)**: 1-5 seconds total processing
-- **Medium (1K-10K trades)**: 5-30 seconds total processing
-- **Large (10K-100K trades)**: 30 seconds-5 minutes total processing
+- **Small datasets (<1K trades)**: 1-5 seconds total processing
+- **Medium datasets (1K-10K trades)**: 5-30 seconds total processing
+- **Large datasets (10K-100K trades)**: 30 seconds-5 minutes total processing
+
+## Benefits Achieved
+
+### 1. **Simplified Architecture**
+- **Single class** instead of multiple specialized loaders
+- **Consistent interface** across all data sources
+- **Reduced complexity** and maintenance overhead
+
+### 2. **Enhanced Reliability**
+- **Automatic fallback** when primary sources fail
+- **Robust error handling** with detailed logging
+- **Data validation** to ensure quality
+
+### 3. **Improved Performance**
+- **Optimized merging** logic for hybrid scenarios
+- **Efficient memory usage** for large datasets
+- **Fast inference** with LightGBM ML models
+
+### 4. **Better User Experience**
+- **Flexible source selection** based on requirements
+- **Clear error messages** for troubleshooting
+- **Comprehensive documentation** and examples
+
+### 5. **Future-Proof Design**
+- **Easy to extend** with new data sources
+- **Modular architecture** for additional features
+- **Well-documented** for maintainability
 
 ## Best Practices
 
@@ -255,15 +381,9 @@ print(f"API Status: {result}")
 - **Check authentication**: Ensure API keys are valid
 - **Review error messages**: Look for specific configuration issues
 
-## Support Resources
+## Testing
 
-### Documentation
-- **UNIFIED_LOADER_SUMMARY.md**: Detailed implementation analysis
-- **CLEANUP_SUMMARY.md**: System architecture overview
-- **API_REFERENCE.md**: Complete API documentation
-- **ARCHITECTURE.md**: System design and components
-
-### Testing
+### Comprehensive Testing Examples
 ```python
 # Test file-based loading
 crew = ReconciliationCrew(data_dir="data/")
@@ -281,6 +401,26 @@ df = crew.run(source="auto")
 crew = ReconciliationCrew(data_dir="data/", api_config=api_config)
 df = crew.run(source="hybrid")
 ```
+
+## Support Resources
+
+### Documentation
+- **CLEANUP_SUMMARY.md**: System architecture overview
+- **API_REFERENCE.md**: Complete API documentation
+- **ARCHITECTURE.md**: System design and components
+- **USAGE_GUIDE.md**: Detailed usage instructions
+
+## Conclusion
+
+The **UnifiedDataLoaderAgent** represents a significant improvement in the reconciliation system's data loading capabilities. By consolidating multiple specialized loaders into a single, powerful class, it provides:
+
+- **Simplified architecture** with reduced complexity
+- **Enhanced reliability** with automatic fallback
+- **Improved performance** with optimized processing
+- **Better user experience** with flexible configuration
+- **Future-proof design** for easy extension
+
+The unified approach eliminates code duplication, provides consistent interfaces, and offers robust error handling while maintaining high performance across all data loading scenarios.
 
 ---
 
