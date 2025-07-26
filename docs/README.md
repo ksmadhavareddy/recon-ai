@@ -67,7 +67,7 @@ This system implements an intelligent reconciliation workflow that combines rule
 
 | Agent | Role | Input | Output | Key Features |
 |-------|------|-------|--------|--------------|
-| **DataLoaderAgent** | Data ingestion and merging | Excel files | Merged DataFrame | Multi-source data fusion |
+| **UnifiedDataLoaderAgent** | Data ingestion and merging | Files, APIs, Auto-detect, Hybrid | Merged DataFrame | Multi-source data fusion with fallback |
 | **ReconAgent** | Mismatch detection | Merged data | Flagged mismatches | Configurable thresholds |
 | **AnalyzerAgent** | Rule-based diagnosis | Flagged data | Business diagnoses | Domain-specific rules |
 | **MLDiagnoserAgent** | ML prediction | Training data | ML diagnoses | CatBoost model |
@@ -235,18 +235,18 @@ cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
 recon-ai/
 ├── crew/
 │   ├── agents/
-│   │   ├── data_loader.py      # Data ingestion
-│   │   ├── recon_agent.py      # Mismatch detection
-│   │   ├── analyzer_agent.py   # Rule-based analysis
-│   │   ├── ml_tool.py         # ML predictions
-│   │   └── narrator_agent.py   # Report generation
-│   └── crew_builder.py        # Pipeline orchestration
-├── data/                      # Input data files
-├── models/                    # Trained ML models
-├── docs/                      # Documentation
-├── pipeline.py               # Main execution script
-├── requirements.txt          # Dependencies
-└── README.md                # Project overview
+│   │   ├── unified_data_loader.py  # Unified data loading (files + APIs)
+│   │   ├── recon_agent.py          # Mismatch detection
+│   │   ├── analyzer_agent.py       # Rule-based analysis
+│   │   ├── ml_tool.py             # ML predictions
+│   │   └── narrator_agent.py       # Report generation
+│   └── crew_builder.py            # Pipeline orchestration
+├── data/                          # Input data files
+├── models/                        # Trained ML models
+├── docs/                          # Documentation
+├── pipeline.py                   # Main execution script
+├── requirements.txt              # Dependencies
+└── README.md                    # Project overview
 ```
 
 ### Adding New Agents

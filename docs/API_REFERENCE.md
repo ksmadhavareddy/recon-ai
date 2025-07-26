@@ -34,37 +34,58 @@ df = crew.run()
 
 ## Agent Reference
 
-### DataLoaderAgent
+### UnifiedDataLoaderAgent
 
-Handles data ingestion and merging from multiple Excel files.
+Handles unified data ingestion and merging from multiple sources (files, APIs, auto-detect, hybrid).
 
 #### Constructor
 ```python
-DataLoaderAgent(data_dir="data/")
+UnifiedDataLoaderAgent(data_dir="data/", api_config=None, auto_fallback=True)
 ```
 
 **Parameters:**
 - `data_dir` (str): Directory containing input files
+- `api_config` (dict): API configuration for external data sources
+- `auto_fallback` (bool): Enable automatic fallback from API to files
 
 #### Methods
 
-##### load_all_data()
-Loads and merges all input Excel files.
+##### load_data(source="auto", trade_ids=None, date=None)
+Loads and merges data from specified source.
+
+**Parameters:**
+- `source` (str): Data source ("files", "api", "auto", "hybrid")
+- `trade_ids` (list): Specific trade IDs to filter (for API)
+- `date` (str): Specific date to filter (for API)
 
 **Returns:**
 - `pandas.DataFrame`: Merged dataset with all trade information
 
+**Source Options:**
+- `"files"`: Load from Excel files only
+- `"api"`: Load from API endpoints only
+- `"auto"`: Auto-detect best available source (default)
+- `"hybrid"`: Load from both sources and merge
+
 **Process:**
-1. Loads `old_pricing.xlsx`
-2. Loads `new_pricing.xlsx`
-3. Loads `trade_metadata.xlsx`
-4. Loads `funding_model_reference.xlsx`
-5. Merges all data on `TradeID` column
+1. Determines data source based on `source` parameter
+2. Loads data from files and/or APIs
+3. Merges all data on `TradeID` column
+4. Applies filtering if trade_ids or date specified
 
 **Example:**
 ```python
-loader = DataLoaderAgent("data/")
-df = loader.load_all_data()
+# File-based loading
+loader = UnifiedDataLoaderAgent("data/")
+df = loader.load_data(source="files")
+
+# API-based loading
+loader = UnifiedDataLoaderAgent(api_config=api_config)
+df = loader.load_data(source="api", trade_ids=["TRADE001", "TRADE002"])
+
+# Auto-detect (default)
+loader = UnifiedDataLoaderAgent("data/", api_config=api_config)
+df = loader.load_data()  # Uses auto-detect
 ```
 
 ### ReconAgent

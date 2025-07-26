@@ -16,7 +16,7 @@ graph TB
     end
     
     subgraph "Agent Layer"
-        E[DataLoaderAgent]
+        E[UnifiedDataLoaderAgent]
         F[ReconAgent]
         G[AnalyzerAgent]
         H[MLDiagnoserAgent]
@@ -59,20 +59,32 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant DLA as DataLoaderAgent
+    participant UDLA as UnifiedDataLoaderAgent
     participant FS as File System
+    participant API as API Endpoints
     
-    U->>DLA: Initialize(data_dir)
-    DLA->>FS: Load old_pricing.xlsx
-    FS-->>DLA: old_pricing DataFrame
-    DLA->>FS: Load new_pricing.xlsx
-    FS-->>DLA: new_pricing DataFrame
-    DLA->>FS: Load trade_metadata.xlsx
-    FS-->>DLA: metadata DataFrame
-    DLA->>FS: Load funding_model_reference.xlsx
-    FS-->>DLA: funding DataFrame
-    DLA->>DLA: Merge all DataFrames on TradeID
-    DLA-->>U: Merged DataFrame
+    U->>UDLA: Initialize(data_dir, api_config)
+    alt File-based loading
+        UDLA->>FS: Load old_pricing.xlsx
+        FS-->>UDLA: old_pricing DataFrame
+        UDLA->>FS: Load new_pricing.xlsx
+        FS-->>UDLA: new_pricing DataFrame
+        UDLA->>FS: Load trade_metadata.xlsx
+        FS-->>UDLA: metadata DataFrame
+        UDLA->>FS: Load funding_model_reference.xlsx
+        FS-->>UDLA: funding DataFrame
+    else API-based loading
+        UDLA->>API: Fetch old_pricing data
+        API-->>UDLA: old_pricing DataFrame
+        UDLA->>API: Fetch new_pricing data
+        API-->>UDLA: new_pricing DataFrame
+        UDLA->>API: Fetch trade_metadata data
+        API-->>UDLA: metadata DataFrame
+        UDLA->>API: Fetch funding_reference data
+        API-->>UDLA: funding DataFrame
+    end
+    UDLA->>UDLA: Merge all DataFrames on TradeID
+    UDLA-->>U: Merged DataFrame
 ```
 
 ### Phase 2: Mismatch Detection
@@ -146,7 +158,7 @@ graph LR
     end
     
     subgraph "Agent Components"
-        DLA[DataLoaderAgent]
+        UDLA[UnifiedDataLoaderAgent]
         RA[ReconAgent]
         AA[AnalyzerAgent]
         MLA[MLDiagnoserAgent]
@@ -155,17 +167,19 @@ graph LR
     
     subgraph "Data Storage"
         FS[File System]
+        API[API Endpoints]
         M[Model Storage]
     end
     
     P --> C
-    C --> DLA
+    C --> UDLA
     C --> RA
     C --> AA
     C --> MLA
     C --> NA
     
-    DLA --> FS
+    UDLA --> FS
+    UDLA --> API
     RA --> FS
     NA --> FS
     MLA --> M
