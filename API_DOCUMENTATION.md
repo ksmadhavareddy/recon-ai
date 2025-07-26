@@ -433,3 +433,21 @@ logging.basicConfig(level=logging.DEBUG)
 - **GraphQL**: Alternative to REST API
 - **Real-time**: WebSocket support
 - **Analytics**: Usage analytics and metrics 
+
+# Model Selection Rationale: Why LightGBM?
+
+For the MLDiagnoserAgent, we chose **LightGBM** as the primary model for the following reasons:
+
+- **Scalability:** LightGBM is specifically designed for large-scale datasets and can efficiently handle 100+ million records.
+- **Speed:** It is faster than most other gradient boosting frameworks (including CatBoost and XGBoost) for both training and prediction, especially on large tabular data.
+- **Memory Efficiency:** LightGBM uses a histogram-based algorithm that is highly memory efficient, making it suitable for big data scenarios.
+- **Native Categorical Support:** LightGBM can natively handle categorical features, reducing the need for extensive preprocessing and improving model performance.
+- **Distributed and GPU Training:** LightGBM supports distributed training across multiple machines and GPU acceleration, which is essential for scaling up in production environments.
+
+**Comparison with Other Models:**
+- **CatBoost:** While CatBoost also handles categorical features natively and is robust, it is generally slower than LightGBM for extremely large datasets.
+- **XGBoost:** XGBoost is highly tunable and scalable, but LightGBM is typically faster and more memory efficient for very large tabular datasets.
+- **RandomForest/LogisticRegression:** These models are not suitable for 100M+ records due to speed and memory limitations.
+
+**Conclusion:**
+LightGBM offers the best trade-off between speed, scalability, and ease of use for large tabular datasets with categorical features, making it the optimal choice for our production-scale MLDiagnoserAgent. 

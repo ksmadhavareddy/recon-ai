@@ -120,29 +120,34 @@ def create_mismatch_chart(df):
     return fig
 
 def create_diagnosis_chart(df):
-    """Create a chart showing diagnosis distribution"""
+    """Create a chart showing PV and Delta diagnosis distribution"""
     if df is None or df.empty:
         return go.Figure()
     
     # Count diagnoses
-    rule_diagnosis_counts = df['Diagnosis'].value_counts()
-    ml_diagnosis_counts = df['ML_Diagnosis'].value_counts()
+    pv_diagnosis_counts = df['PV_Diagnosis'].value_counts()
+    delta_diagnosis_counts = df['Delta_Diagnosis'].value_counts()
+    ml_diagnosis_counts = df['ML_Diagnosis'].value_counts() if 'ML_Diagnosis' in df.columns else None
     
     fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=('Rule-based Diagnoses', 'ML Diagnoses'),
-        specs=[[{"type": "pie"}, {"type": "pie"}]]
+        rows=1, cols=3,
+        subplot_titles=('PV Diagnoses', 'Delta Diagnoses', 'ML Diagnoses'),
+        specs=[[{"type": "pie"}, {"type": "pie"}, {"type": "pie"}]]
     )
     
     fig.add_trace(
-        go.Pie(labels=rule_diagnosis_counts.index, values=rule_diagnosis_counts.values, name="Rule-based"),
+        go.Pie(labels=pv_diagnosis_counts.index, values=pv_diagnosis_counts.values, name="PV Diagnosis"),
         row=1, col=1
     )
-    
     fig.add_trace(
-        go.Pie(labels=ml_diagnosis_counts.index, values=ml_diagnosis_counts.values, name="ML"),
+        go.Pie(labels=delta_diagnosis_counts.index, values=delta_diagnosis_counts.values, name="Delta Diagnosis"),
         row=1, col=2
     )
+    if ml_diagnosis_counts is not None:
+        fig.add_trace(
+            go.Pie(labels=ml_diagnosis_counts.index, values=ml_diagnosis_counts.values, name="ML Diagnosis"),
+            row=1, col=3
+        )
     
     fig.update_layout(height=400, title_text="Diagnosis Distribution")
     
@@ -164,7 +169,7 @@ def create_pv_delta_scatter(df):
         x='PV_Diff',
         y='Delta_Diff',
         color='Any_Mismatch',
-        hover_data=['TradeID', 'ProductType', 'Diagnosis'],
+        hover_data=['TradeID', 'ProductType', 'PV_Diagnosis', 'Delta_Diagnosis'],
         title="PV vs Delta Changes",
         labels={'PV_Diff': 'PV Difference', 'Delta_Diff': 'Delta Difference'}
     )
@@ -247,27 +252,28 @@ def display_metrics(df):
         )
 
 def display_comparison_table(df):
-    """Display comparison between rule-based and ML diagnoses"""
+    """Display comparison between PV, Delta, and ML diagnoses"""
     if df is None or df.empty:
         return
-    
-    st.subheader("Rule-based vs ML Diagnosis Comparison")
-    
+    st.subheader("PV/Delta vs ML Diagnosis Comparison")
     # Create comparison table
-    comparison_df = df[['TradeID', 'Diagnosis', 'ML_Diagnosis']].copy()
-    comparison_df['Agreement'] = comparison_df['Diagnosis'] == comparison_df['ML_Diagnosis']
-    
+    comparison_df = df[['TradeID', 'PV_Diagnosis', 'Delta_Diagnosis']].copy()
+    if 'ML_Diagnosis' in df.columns:
+        comparison_df['ML_Diagnosis'] = df['ML_Diagnosis']
+        comparison_df['PV_Agreement'] = comparison_df['PV_Diagnosis'] == comparison_df['ML_Diagnosis']
+        comparison_df['Delta_Agreement'] = comparison_df['Delta_Diagnosis'] == comparison_df['ML_Diagnosis']
     # Calculate agreement statistics
-    agreement_rate = comparison_df['Agreement'].mean() * 100
-    disagreements = comparison_df[~comparison_df['Agreement']]
-    
-    st.write(f"**Agreement Rate: {agreement_rate:.1f}%**")
-    st.write(f"**Disagreements: {len(disagreements)} trades**")
-    
+    pv_agreement_rate = comparison_df['PV_Agreement'].mean() * 100 if 'PV_Agreement' in comparison_df else None
+    delta_agreement_rate = comparison_df['Delta_Agreement'].mean() * 100 if 'Delta_Agreement' in comparison_df else None
+    st.write(f"**PV Agreement Rate: {pv_agreement_rate:.1f}%**" if pv_agreement_rate is not None else "")
+    st.write(f"**Delta Agreement Rate: {delta_agreement_rate:.1f}%**" if delta_agreement_rate is not None else "")
     # Show disagreements
-    if not disagreements.empty:
-        st.write("**Trades with Different Diagnoses:**")
-        st.dataframe(disagreements)
+    if 'PV_Agreement' in comparison_df and not comparison_df[~comparison_df['PV_Agreement']].empty:
+        st.write("**Trades with Different PV Diagnoses:**")
+        st.dataframe(comparison_df[~comparison_df['PV_Agreement']])
+    if 'Delta_Agreement' in comparison_df and not comparison_df[~comparison_df['Delta_Agreement']].empty:
+        st.write("**Trades with Different Delta Diagnoses:**")
+        st.dataframe(comparison_df[~comparison_df['Delta_Agreement']])
 
 def display_api_status(crew):
     """Display API connection status"""
@@ -432,6 +438,14 @@ def main():
         date_input = None
         api_config = None
     
+    # Analysis Type Selection
+    st.sidebar.header("Analysis Type")
+    analysis_type = st.sidebar.selectbox(
+        "Select analysis type",
+        ["All", "PV Only", "Delta Only"],
+        help="Choose which mismatches to analyze"
+    )
+
     # Configuration options
     st.sidebar.header("⚙️ Settings")
     
@@ -505,6 +519,14 @@ def main():
             if df is None or df.empty:
                 st.warning("⚠️ No data returned from reconciliation process.")
                 return
+            
+            # Mask DataFrame based on analysis_type
+            if analysis_type == "PV Only":
+                df["Delta_Mismatch"] = False
+                df["Delta_Diagnosis"] = "N/A"
+            elif analysis_type == "Delta Only":
+                df["PV_Mismatch"] = False
+                df["PV_Diagnosis"] = "N/A"
             
             # Store results in session state
             st.session_state.analysis_results = df
@@ -582,7 +604,7 @@ def main():
                     st.session_state.selected_product_type = selected_product_type
                 
                 with col3:
-                    diagnoses = ["All"] + list(df['Diagnosis'].unique())
+                    diagnoses = ["All"] + list(df['PV_Diagnosis'].unique()) + list(df['Delta_Diagnosis'].unique())
                     selected_diagnosis = st.selectbox(
                         "Filter by Diagnosis",
                         options=diagnoses,
@@ -599,7 +621,7 @@ def main():
                 if selected_product_type != "All":
                     filtered_df = filtered_df[filtered_df['ProductType'] == selected_product_type]
                 if selected_diagnosis != "All":
-                    filtered_df = filtered_df[filtered_df['Diagnosis'] == selected_diagnosis]
+                    filtered_df = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis] | filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
                 
                 # Display filter summary and reset button
                 if show_mismatches_only or selected_product_type != "All" or selected_diagnosis != "All":
@@ -676,7 +698,7 @@ def main():
                     "PV Mismatches": df['PV_Mismatch'].sum(),
                     "Delta Mismatches": df['Delta_Mismatch'].sum(),
                     "Flagged Trades": df['Any_Mismatch'].sum(),
-                    "Agreement Rate": f"{(df['Diagnosis'] == df['ML_Diagnosis']).mean()*100:.1f}%"
+                    "Agreement Rate": f"{(df['PV_Diagnosis'] == df['ML_Diagnosis']).mean()*100:.1f}%"
                 }
                 
                 for key, value in summary_stats.items():
@@ -687,6 +709,14 @@ def main():
         df = st.session_state.analysis_results
         crew = st.session_state.analysis_crew
         
+        # Mask DataFrame based on analysis_type
+        if analysis_type == "PV Only":
+            df["Delta_Mismatch"] = False
+            df["Delta_Diagnosis"] = "N/A"
+        elif analysis_type == "Delta Only":
+            df["PV_Mismatch"] = False
+            df["PV_Diagnosis"] = "N/A"
+
         st.success("✅ Using previous analysis results. Run new analysis to refresh data.")
         
         # Display metrics
@@ -754,7 +784,7 @@ def main():
                 st.session_state.selected_product_type = selected_product_type
             
             with col3:
-                diagnoses = ["All"] + list(df['Diagnosis'].unique())
+                diagnoses = ["All"] + list(df['PV_Diagnosis'].unique()) + list(df['Delta_Diagnosis'].unique())
                 selected_diagnosis = st.selectbox(
                     "Filter by Diagnosis",
                     options=diagnoses,
@@ -771,7 +801,7 @@ def main():
             if selected_product_type != "All":
                 filtered_df = filtered_df[filtered_df['ProductType'] == selected_product_type]
             if selected_diagnosis != "All":
-                filtered_df = filtered_df[filtered_df['Diagnosis'] == selected_diagnosis]
+                filtered_df = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis] | filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
             
             # Display filter summary and reset button
             if show_mismatches_only or selected_product_type != "All" or selected_diagnosis != "All":
@@ -848,7 +878,7 @@ def main():
                 "PV Mismatches": df['PV_Mismatch'].sum(),
                 "Delta Mismatches": df['Delta_Mismatch'].sum(),
                 "Flagged Trades": df['Any_Mismatch'].sum(),
-                "Agreement Rate": f"{(df['Diagnosis'] == df['ML_Diagnosis']).mean()*100:.1f}%"
+                "Agreement Rate": f"{(df['PV_Diagnosis'] == df['ML_Diagnosis']).mean()*100:.1f}%"
             }
             
             for key, value in summary_stats.items():

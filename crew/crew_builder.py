@@ -54,8 +54,8 @@ class ReconciliationCrew:
         # ML Training and Prediction
         print("🤖 Step 4: Training ML model and predicting diagnoses...")
         if self.ml_agent.model is None:
-            self.ml_agent.train(df)
-        df["ML_Diagnosis"] = self.ml_agent.predict(df)
+            self.ml_agent.train(df, label_col='PV_Diagnosis')
+        df["ML_Diagnosis"] = self.ml_agent.predict(df, label_col='PV_Diagnosis')
 
         print("📝 Step 5: Generating report...")
         self.narrator_agent.summarize_report(df)
