@@ -74,7 +74,7 @@ python pipeline.py --source files --data-dir /path/to/data
 ### 4. Check Results
 
 - **Report**: `final_recon_report.xlsx`
-- **Model**: `models/catboost_diagnoser.pkl`
+- **Model**: `models/lightgbm_diagnoser.txt`
 - **Console Output**: Summary statistics
 
 ## Detailed Usage
@@ -281,7 +281,7 @@ The ML model learns patterns from rule-based diagnoses and may identify:
 
 #### 1. Missing Dependencies
 ```
-ModuleNotFoundError: No module named 'catboost'
+ModuleNotFoundError: No module named 'lightgbm'
 ```
 **Solution**: Install missing packages
 ```bash
@@ -317,7 +317,7 @@ MemoryError: Unable to allocate array
 
 #### 6. Model Loading Errors
 ```
-FileNotFoundError: [Errno 2] No such file or directory: 'models/catboost_diagnoser.pkl'
+FileNotFoundError: [Errno 2] No such file or directory: 'models/lightgbm_diagnoser.txt'
 ```
 **Solution**: The model will be created automatically on first run
 

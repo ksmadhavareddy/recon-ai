@@ -197,7 +197,7 @@ graph TD
     end
     
     subgraph "Model Training"
-        D[CatBoost Classifier]
+        D[LightGBM Classifier]
         E[Feature Selection]
         F[Hyperparameter Tuning]
     end

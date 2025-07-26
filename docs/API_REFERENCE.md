@@ -176,11 +176,11 @@ df = analyzer.apply(df)
 
 ### MLDiagnoserAgent
 
-Provides machine learning-based diagnosis predictions using CatBoost.
+Provides machine learning-based diagnosis predictions using LightGBM.
 
 #### Constructor
 ```python
-MLDiagnoserAgent(model_path="models/catboost_diagnoser.pkl")
+MLDiagnoserAgent(model_path="models/lightgbm_diagnoser.txt")
 ```
 
 **Parameters:**
@@ -208,14 +208,14 @@ X, y = ml_agent.prepare_features_and_labels(df)
 ```
 
 ##### train(df)
-Trains the CatBoost model using rule-based diagnoses as labels.
+Trains the LightGBM model using rule-based diagnoses as labels.
 
 **Parameters:**
 - `df` (pandas.DataFrame): Training data with `Diagnosis` column
 
 **Process:**
 1. Prepares features and labels
-2. Initializes CatBoostClassifier
+2. Initializes LightGBMClassifier
 3. Specifies categorical features
 4. Fits the model
 5. Saves model and label encoder
@@ -251,7 +251,7 @@ predictions = ml_agent.predict(df)
 Saves the trained model and label encoder.
 
 **Saved Components:**
-- Trained CatBoost model
+- Trained LightGBM model
 - LabelEncoder for target variable
 
 **Example:**
@@ -446,14 +446,16 @@ for chunk in pd.read_excel(file, chunksize=chunk_size):
 
 ### Memory Usage
 - **Peak Memory**: ~2x data size for merged DataFrame
-- **Model Size**: ~1MB for CatBoost model
+- **Model Size**: ~1MB for LightGBM model
 - **Optimization**: Process large datasets in chunks
 
-### Processing Speed
-- **Data Loading**: ~1000 trades/second
-- **Mismatch Detection**: ~5000 trades/second
-- **ML Training**: ~1-5 seconds for typical datasets
-- **ML Prediction**: ~10000 trades/second
+### Performance Metrics
+
+#### Model Performance
+- **Training Time**: <1 second for typical datasets
+- **Prediction Time**: <0.1 second per trade
+- **Model Size**: ~1MB for LightGBM model
+- **Accuracy**: Depends on data quality and feature relevance
 
 ### Scalability
 - **Linear Scaling**: Performance scales linearly with data size

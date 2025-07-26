@@ -1,11 +1,4 @@
 pandas
-openpyxl
-catboost
+lightgbm
 scikit-learn
-crewai
-streamlit
-plotly
 joblib
-requests
-fastapi
-uvicorn

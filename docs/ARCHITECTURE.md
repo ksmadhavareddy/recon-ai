@@ -138,7 +138,7 @@ graph TB
 **Input**: Training data and features
 **Output**: ML predictions and trained model
 **Key Features**:
-- **CatBoost model**: Gradient boosting with categorical features
+- **LightGBM model**: Gradient boosting with categorical features
 - **Automatic training**: Uses rule-based diagnoses as labels
 - **Model persistence**: Saves trained model for reuse
 - **Feature engineering**: PV/Delta values and metadata
@@ -280,12 +280,12 @@ The UnifiedDataLoaderAgent supports external API integration:
 1. **Data Preparation**: Load and merge all required data
 2. **Feature Engineering**: Extract numerical and categorical features
 3. **Label Encoding**: Convert rule-based diagnoses to numerical labels
-4. **Model Training**: Train CatBoost classifier
+4. **Model Training**: Train LightGBM classifier
 5. **Model Persistence**: Save trained model for future use
 
 ### Prediction Process
 
-1. **Model Loading**: Load trained CatBoost model
+1. **Model Loading**: Load trained LightGBM model
 2. **Feature Preparation**: Prepare features for new data
 3. **Prediction**: Generate ML predictions
 4. **Label Decoding**: Convert numerical predictions back to diagnoses
@@ -294,7 +294,7 @@ The UnifiedDataLoaderAgent supports external API integration:
 
 - **Training Time**: <1 second for typical datasets
 - **Prediction Time**: <0.1 second per trade
-- **Model Size**: ~1MB (CatBoost model)
+- **Model Size**: ~1MB (LightGBM model)
 - **Accuracy**: Depends on data quality and feature relevance
 
 ## System Integration

@@ -12,7 +12,7 @@ This project implements a modular, agent-based reconciliation engine powered by 
 - 📤 Final Excel report with root cause annotations
 - 🔌 **API Integration** for real-time data access
 - 🌐 **REST API Server** for data access and integration
-- 🤖 **ML-powered diagnosis** with CatBoost models
+- 🤖 **ML-powered diagnosis** with LightGBM models
 - 📊 **Interactive Dashboard** with Streamlit
 - 🔄 **Unified data loading** (Files + APIs + Auto-detect + Hybrid)
 
@@ -246,7 +246,7 @@ python test_api_connection.py --config api_config.json
 ## 🧠 ML Integration
 
 ### **Features:**
-- **CatBoost model** for diagnosis prediction
+- **LightGBM model** for diagnosis prediction
 - **Automatic training** using rule-based diagnoses as labels
 - **Model persistence** for reuse
 - **Confidence scoring** and validation
@@ -255,7 +255,7 @@ python test_api_connection.py --config api_config.json
 ### **Model Architecture:**
 - **Features**: PV/Delta values, product types, funding curves
 - **Target**: Rule-based diagnosis labels
-- **Algorithm**: CatBoost with categorical feature support
+- **Algorithm**: LightGBM with categorical feature support
 - **Validation**: Cross-validation with business rules
 
 ---

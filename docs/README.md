@@ -30,7 +30,7 @@ This system implements an intelligent reconciliation workflow that combines rule
 │  │              ML Diagnoser Agent                        │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐            │   │
 │  │  │ Train Model     │  │ Predict         │            │   │
-│  │  │ (CatBoost)      │  │ Diagnoses       │            │   │
+│  │  │ (LightGBM)      │  │ Diagnoses       │            │   │
 │  │  └─────────────────┘  └─────────────────┘            │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                          │                                    │
@@ -70,7 +70,7 @@ This system implements an intelligent reconciliation workflow that combines rule
 | **UnifiedDataLoaderAgent** | Data ingestion and merging | Files, APIs, Auto-detect, Hybrid | Merged DataFrame | Multi-source data fusion with fallback |
 | **ReconAgent** | Mismatch detection | Merged data | Flagged mismatches | Configurable thresholds |
 | **AnalyzerAgent** | Rule-based diagnosis | Flagged data | Business diagnoses | Domain-specific rules |
-| **MLDiagnoserAgent** | ML prediction | Training data | ML diagnoses | CatBoost model |
+| **MLDiagnoserAgent** | ML prediction | Training data | ML diagnoses | LightGBM model |
 | **NarratorAgent** | Report generation | All results | Excel report | Summary statistics |
 
 ### ML Model Architecture
@@ -92,7 +92,7 @@ This system implements an intelligent reconciliation workflow that combines rule
 │  │ 2. Label        │  │    Features     │                │
 │  │    Encoding     │  │ 3. Predict      │                │
 │  │ 3. Train        │  │    Diagnoses    │                │
-│  │    CatBoost     │  │ 4. Decode       │                │
+│  │    LightGBM     │  │ 4. Decode       │                │
 │  │ 4. Save Model   │  │    Results      │                │
 │  └─────────────────┘  └─────────────────┘                │
 └─────────────────────────────────────────────────────────────┘
@@ -154,7 +154,7 @@ Flagged Trades: 2
    - ML-based diagnoses
    - Comparison analysis
 
-2. **`models/catboost_diagnoser.pkl`** - Trained ML model for future predictions
+2. **`models/lightgbm_diagnoser.txt`** - Trained ML model for future predictions
 
 ### Report Columns
 
@@ -182,7 +182,7 @@ delta_tolerance = 0.05   # Delta mismatch threshold
 
 ```python
 # In MLDiagnoserAgent
-model_path = "models/catboost_diagnoser.pkl"
+model_path = "models/lightgbm_diagnoser.txt"
 cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
 ```
 
@@ -203,8 +203,8 @@ cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
 ### Model Training
 
 1. **Label Source**: Rule-based diagnoses from `AnalyzerAgent`
-2. **Algorithm**: CatBoost (gradient boosting)
-3. **Categorical Handling**: Native CatBoost categorical features
+2. **Model Selection**: Change `LightGBMClassifier` to other algorithms
+3. **Categorical Handling**: Native LightGBM categorical features
 4. **Validation**: Uses all available data for training
 
 ### Prediction Process
@@ -259,7 +259,7 @@ recon-ai/
 ### Extending ML Capabilities
 
 1. **Feature Engineering**: Add new features in `prepare_features_and_labels()`
-2. **Model Selection**: Change `CatBoostClassifier` to other algorithms
+2. **Model Selection**: Change `LightGBMClassifier` to other algorithms
 3. **Hyperparameter Tuning**: Add grid search or Bayesian optimization
 4. **Ensemble Methods**: Combine multiple models for better predictions
 
@@ -276,7 +276,7 @@ recon-ai/
 
 - **Training Time**: <1 second for typical datasets
 - **Prediction Time**: <0.1 second per trade
-- **Model Size**: ~1MB (CatBoost model)
+- **Model Size**: ~1MB (LightGBM model)
 - **Accuracy**: Depends on data quality and feature relevance
 
 ## 🔮 Future Enhancements
@@ -324,4 +324,4 @@ For questions or issues:
 
 ---
 
-**Built with ❤️ using CrewAI architecture and CatBoost ML** 
+**Built with ❤️ using CrewAI architecture and LightGBM ML** 
