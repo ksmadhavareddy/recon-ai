@@ -19,6 +19,7 @@ class UnifiedDataLoaderAgent:
 
 ### Key Features
 - **Multi-source support**: Files, APIs, auto-detect, hybrid
+- **Auto-load functionality**: One-click loading of all 4 files from data/ directory
 - **Automatic fallback**: Graceful degradation when sources fail
 - **Data validation**: Quality checks and error reporting
 - **Performance optimization**: Efficient merging and memory management
@@ -49,6 +50,13 @@ class UnifiedDataLoaderAgent:
 - **Performance**: 500-5,000 trades/second (optimized merging)
 - **Use case**: Data validation, redundancy, comprehensive analysis
 - **Requirements**: Both file and API sources available
+
+### 5. Auto-Load Functionality (Streamlit Dashboard)
+- **Purpose**: One-click loading of all 4 required files from data/ directory
+- **Performance**: Instant loading with visual status indicators
+- **Use case**: Streamlined user experience, non-technical users
+- **Requirements**: All 4 files present in data/ directory
+- **Features**: Visual status indicators, error handling, ready confirmation
 
 ## Core Methods
 
@@ -272,6 +280,44 @@ loader = UnifiedDataLoaderAgent(api_config=custom_config)
 - **Data type checking**: Verify correct data types
 - **Missing value handling**: Intelligent handling of null values
 - **Duplicate detection**: Identify and handle duplicate records
+
+## Auto-Load Implementation
+
+### Streamlit Dashboard Integration
+The auto-load functionality is implemented in the Streamlit dashboard (`app.py`) with the following components:
+
+#### **Auto-Load Function**
+```python
+def auto_load_data_files(data_dir="data"):
+    """Auto-load all required files from data directory"""
+    required_files = [
+        'old_pricing.xlsx',
+        'new_pricing.xlsx', 
+        'trade_metadata.xlsx',
+        'funding_model_reference.xlsx'
+    ]
+    # Implementation with file validation and status tracking
+```
+
+#### **Status Display Function**
+```python
+def display_file_status(file_status):
+    """Display loading status with visual indicators"""
+    # Implementation with success/error indicators and file size display
+```
+
+#### **User Interface Integration**
+- **Radio Button Selection**: Choose between "Auto-load from data/" and "Manual upload"
+- **Visual Status Indicators**: Real-time loading status with success/error indicators
+- **Ready Confirmation**: Clear "Ready for reconciliation analysis!" message
+- **Error Handling**: Graceful handling of missing or corrupted files
+
+### Benefits
+- **🚀 Speed**: Eliminates manual file upload process
+- **🎯 Accuracy**: Ensures all required files are loaded
+- **👁️ Transparency**: Clear visual feedback on loading status
+- **🛡️ Reliability**: Robust error handling and validation
+- **📱 User-Friendly**: Intuitive interface for non-technical users
 
 ## Performance Optimization
 

@@ -124,6 +124,28 @@ python run_dashboard.py
 streamlit run app.py
 ```
 
+**🚀 Auto-Load Feature:**
+The Streamlit dashboard now includes an **auto-load functionality** that automatically loads all required input files from the `data/` directory:
+
+- **One-Click Setup**: Choose "Auto-load from data/" option in the dashboard
+- **All 4 Files**: Automatically loads:
+  - `old_pricing.xlsx`
+  - `new_pricing.xlsx` 
+  - `trade_metadata.xlsx`
+  - `funding_model_reference.xlsx`
+- **Visual Status**: Real-time loading status with success/error indicators
+- **Ready Confirmation**: Clear "Ready for reconciliation analysis!" message
+- **File Size Display**: Shows file sizes for loaded files
+- **Error Handling**: Graceful handling of missing or corrupted files
+
+**How to Use Auto-Load:**
+1. Open the dashboard at http://localhost:8501
+2. Select "Files" as data source
+3. Choose "Auto-load from data/" option
+4. Watch all 4 files load automatically with status indicators
+5. Confirm "Ready for reconciliation analysis!" message
+6. Click "Run Reconciliation Analysis"
+
 #### **REST API Server:**
 ```bash
 # Start REST API server
@@ -210,10 +232,18 @@ python test_api_connection.py --config api_config.json
 ## 📊 Dashboard Features
 
 ### **Data Source Selection:**
-- **Files**: Upload Excel files directly
+- **Files**: Upload Excel files directly or use auto-load from data/
 - **API**: Connect to external APIs
 - **Auto-detect**: Automatically choose best source
 - **Hybrid**: Combine multiple sources
+
+### **Auto-Load Functionality:**
+- **One-Click Setup**: Automatically loads all 4 required files from data/ directory
+- **Visual Status Indicators**: Real-time loading status with success/error indicators
+- **File Validation**: Checks file existence, size, and format
+- **Error Handling**: Graceful handling of missing or corrupted files
+- **Ready Confirmation**: Clear indication when all files are loaded and ready
+- **File Size Display**: Shows file sizes for transparency
 
 ### **Interactive Visualizations:**
 - Mismatch distribution charts

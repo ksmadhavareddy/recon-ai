@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 import time
 import json
+import shutil
 
 # Import our reconciliation system
 from crew.crew_builder import ReconciliationCrew
@@ -59,6 +60,29 @@ st.markdown("""
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
+    .file-status {
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        margin: 0.25rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .file-status.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .file-status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    .file-status.warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,6 +103,80 @@ def save_uploaded_files(uploaded_files, temp_dir):
             saved_files[uploaded_file.name] = file_path
     
     return saved_files
+
+def auto_load_data_files(data_dir="data"):
+    """Automatically load all 4 required files from the data directory"""
+    required_files = [
+        'old_pricing.xlsx',
+        'new_pricing.xlsx', 
+        'trade_metadata.xlsx',
+        'funding_model_reference.xlsx'
+    ]
+    
+    file_status = {}
+    temp_dir = None
+    
+    try:
+        # Check if data directory exists
+        if not os.path.exists(data_dir):
+            return None, {file: {"status": "error", "message": f"Data directory '{data_dir}' not found"} for file in required_files}
+        
+        # Create temporary directory
+        temp_dir = create_temp_data_directory()
+        
+        # Copy files from data directory to temp directory
+        for file in required_files:
+            source_path = os.path.join(data_dir, file)
+            if os.path.exists(source_path):
+                dest_path = os.path.join(temp_dir, file)
+                shutil.copy2(source_path, dest_path)
+                file_status[file] = {
+                    "status": "success",
+                    "message": f"✅ Loaded successfully",
+                    "path": dest_path,
+                    "size": os.path.getsize(source_path)
+                }
+            else:
+                file_status[file] = {
+                    "status": "error", 
+                    "message": f"❌ File not found: {file}"
+                }
+        
+        # Check if all files were loaded successfully
+        all_loaded = all(status["status"] == "success" for status in file_status.values())
+        
+        return temp_dir if all_loaded else None, file_status
+        
+    except Exception as e:
+        return None, {file: {"status": "error", "message": f"❌ Error loading {file}: {str(e)}"} for file in required_files}
+
+def display_file_status(file_status):
+    """Display the status of loaded files"""
+    st.subheader("📁 File Loading Status")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        for filename, status in file_status.items():
+            status_class = status["status"]
+            message = status["message"]
+            
+            if status["status"] == "success":
+                size_mb = status["size"] / (1024 * 1024)
+                message += f" ({size_mb:.2f} MB)"
+            
+            st.markdown(f'<div class="file-status {status_class}">{filename}: {message}</div>', unsafe_allow_html=True)
+    
+    with col2:
+        success_count = sum(1 for status in file_status.values() if status["status"] == "success")
+        total_count = len(file_status)
+        
+        if success_count == total_count:
+            st.success(f"✅ All {total_count} files loaded successfully!")
+        elif success_count > 0:
+            st.warning(f"⚠️ {success_count}/{total_count} files loaded")
+        else:
+            st.error(f"❌ No files loaded successfully")
 
 def run_reconciliation(data_dir=None, api_config=None, source="auto", trade_ids=None, date=None):
     """Run the reconciliation pipeline"""
@@ -322,32 +420,73 @@ def main():
     
     # Initialize variables
     uploaded_files = {}
+    load_method = None  # Initialize load_method for all data sources
+    temp_dir = None
+    file_status = {}
     
     # File upload section (only show if files selected or auto-detect)
     if data_source in ["Files", "Auto-detect"]:
-        st.sidebar.header("📁 File Upload")
-        st.sidebar.write("Upload your reconciliation data files:")
+        st.sidebar.header("📁 File Loading")
         
-        uploaded_files = {
-            'old_pricing.xlsx': st.sidebar.file_uploader("Old Pricing Data", type=['xlsx']),
-            'new_pricing.xlsx': st.sidebar.file_uploader("New Pricing Data", type=['xlsx']),
-            'trade_metadata.xlsx': st.sidebar.file_uploader("Trade Metadata", type=['xlsx']),
-            'funding_model_reference.xlsx': st.sidebar.file_uploader("Funding Model Reference", type=['xlsx'])
-        }
+        # Add auto-load option
+        load_method = st.sidebar.radio(
+            "Choose loading method:",
+            ["Auto-load from data/", "Manual upload"],
+            help="Auto-load automatically loads all 4 files from the data/ directory"
+        )
         
-        # Check if all required files are uploaded
-        all_files_uploaded = all(file is not None for file in uploaded_files.values())
-        
-        if not all_files_uploaded and data_source == "Files":
-            st.sidebar.warning("Please upload all required files to proceed.")
-            st.info("""
-            ### Required Files:
-            - **old_pricing.xlsx**: Previous pricing data
-            - **new_pricing.xlsx**: Current pricing data  
-            - **trade_metadata.xlsx**: Trade characteristics
-            - **funding_model_reference.xlsx**: Funding information
-            """)
-            return
+        if load_method and load_method == "Auto-load from data/":
+            st.sidebar.info("🔄 Auto-loading files from data/ directory...")
+            
+            # Auto-load files
+            temp_dir, file_status = auto_load_data_files("data")
+            
+            if temp_dir:
+                st.sidebar.success("✅ All files loaded successfully!")
+                # Create dummy uploaded_files dict for compatibility
+                uploaded_files = {
+                    'old_pricing.xlsx': "auto_loaded",
+                    'new_pricing.xlsx': "auto_loaded", 
+                    'trade_metadata.xlsx': "auto_loaded",
+                    'funding_model_reference.xlsx': "auto_loaded"
+                }
+            else:
+                st.sidebar.error("❌ Failed to load all required files")
+                # Display file status in main area
+                display_file_status(file_status)
+                st.info("""
+                ### Required Files:
+                - **old_pricing.xlsx**: Previous pricing data
+                - **new_pricing.xlsx**: Current pricing data  
+                - **trade_metadata.xlsx**: Trade characteristics
+                - **funding_model_reference.xlsx**: Funding information
+                
+                Please ensure all files are present in the `data/` directory.
+                """)
+                return
+        else:
+            st.sidebar.write("Upload your reconciliation data files:")
+            
+            uploaded_files = {
+                'old_pricing.xlsx': st.sidebar.file_uploader("Old Pricing Data", type=['xlsx']),
+                'new_pricing.xlsx': st.sidebar.file_uploader("New Pricing Data", type=['xlsx']),
+                'trade_metadata.xlsx': st.sidebar.file_uploader("Trade Metadata", type=['xlsx']),
+                'funding_model_reference.xlsx': st.sidebar.file_uploader("Funding Model Reference", type=['xlsx'])
+            }
+            
+            # Check if all required files are uploaded
+            all_files_uploaded = all(file is not None for file in uploaded_files.values())
+            
+            if not all_files_uploaded and data_source == "Files":
+                st.sidebar.warning("Please upload all required files to proceed.")
+                st.info("""
+                ### Required Files:
+                - **old_pricing.xlsx**: Previous pricing data
+                - **new_pricing.xlsx**: Current pricing data  
+                - **trade_metadata.xlsx**: Trade characteristics
+                - **funding_model_reference.xlsx**: Funding information
+                """)
+                return
     
     # API Configuration (only show if API selected or auto-detect)
     api_config = None
@@ -495,10 +634,22 @@ def main():
             source = source_map.get(data_source, "auto")
             
             # Prepare parameters
-            temp_dir = None
             if data_source == "Files":
-                temp_dir = create_temp_data_directory()
-                saved_files = save_uploaded_files(uploaded_files.values(), temp_dir)
+                if load_method and load_method == "Auto-load from data/":
+                    # temp_dir already created by auto_load_data_files
+                    pass
+                elif load_method and load_method == "Manual upload":
+                    temp_dir = create_temp_data_directory()
+                    saved_files = save_uploaded_files(uploaded_files.values(), temp_dir)
+            
+            # Display file status if auto-loaded
+            if load_method and load_method == "Auto-load from data/" and file_status and data_source in ["Files", "Auto-detect"]:
+                display_file_status(file_status)
+                st.success("🎯 Ready for reconciliation analysis!")
+                st.info("All 4 input files have been loaded and are ready for processing.")
+            elif load_method and load_method == "Manual upload":
+                # Handle manual upload case
+                pass
             
             # Run reconciliation
             # For API source, don't pass data_dir to avoid file loading
@@ -621,7 +772,10 @@ def main():
                 if selected_product_type != "All":
                     filtered_df = filtered_df[filtered_df['ProductType'] == selected_product_type]
                 if selected_diagnosis != "All":
-                    filtered_df = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis] | filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
+                    # Use pd.concat instead of | operator to avoid TypeError with NaN values
+                    pv_matches = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis]
+                    delta_matches = filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
+                    filtered_df = pd.concat([pv_matches, delta_matches]).drop_duplicates()
                 
                 # Display filter summary and reset button
                 if show_mismatches_only or selected_product_type != "All" or selected_diagnosis != "All":
@@ -801,7 +955,10 @@ def main():
             if selected_product_type != "All":
                 filtered_df = filtered_df[filtered_df['ProductType'] == selected_product_type]
             if selected_diagnosis != "All":
-                filtered_df = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis] | filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
+                # Use pd.concat instead of | operator to avoid TypeError with NaN values
+                pv_matches = filtered_df[filtered_df['PV_Diagnosis'] == selected_diagnosis]
+                delta_matches = filtered_df[filtered_df['Delta_Diagnosis'] == selected_diagnosis]
+                filtered_df = pd.concat([pv_matches, delta_matches]).drop_duplicates()
             
             # Display filter summary and reset button
             if show_mismatches_only or selected_product_type != "All" or selected_diagnosis != "All":
@@ -892,16 +1049,17 @@ def main():
         This dashboard provides a user-friendly interface for running AI-powered reconciliation analysis.
         
         **Data Sources:**
-        - **Files**: Upload Excel files directly
+        - **Files**: Auto-load all 4 files from data/ directory or upload manually
         - **API**: Connect to external APIs for real-time data
         - **Auto-detect**: Automatically choose the best available source
         
         **To get started:**
         1. Select your data source (Files/API/Auto-detect)
-        2. Configure your data source settings
-        3. Adjust tolerance settings
-        4. Click "Run Reconciliation Analysis"
-        5. Explore the results in the interactive dashboard
+        2. Choose "Auto-load from data/" for automatic file loading
+        3. Configure your data source settings
+        4. Adjust tolerance settings
+        5. Click "Run Reconciliation Analysis"
+        6. Explore the results in the interactive dashboard
         
         **Features:**
         - 📊 Real-time analysis and visualization
@@ -910,6 +1068,7 @@ def main():
         - 📋 Detailed results and filtering
         - 🔌 API integration and monitoring
         - 💾 Export capabilities
+        - 🚀 Auto-load functionality for quick setup
         """)
         
         # Sample data preview

@@ -36,7 +36,7 @@ df = crew.run()
 
 ### UnifiedDataLoaderAgent
 
-Handles unified data ingestion and merging from multiple sources (files, APIs, auto-detect, hybrid).
+Handles unified data ingestion and merging from multiple sources (files, APIs, auto-detect, hybrid) with auto-load functionality.
 
 #### Constructor
 ```python
@@ -73,6 +73,13 @@ Loads and merges data from specified source.
 3. Merges all data on `TradeID` column
 4. Applies filtering if trade_ids or date specified
 
+**Auto-Load Features:**
+- **One-Click Setup**: Automatically loads all 4 required files from data/ directory
+- **Visual Status Indicators**: Real-time loading status with success/error indicators
+- **File Validation**: Checks file existence, size, and format
+- **Error Handling**: Graceful handling of missing or corrupted files
+- **Ready Confirmation**: Clear indication when all files are loaded and ready
+
 **Example:**
 ```python
 # File-based loading
@@ -86,6 +93,10 @@ df = loader.load_data(source="api", trade_ids=["TRADE001", "TRADE002"])
 # Auto-detect (default)
 loader = UnifiedDataLoaderAgent("data/", api_config=api_config)
 df = loader.load_data()  # Uses auto-detect
+
+# Auto-load functionality (Streamlit dashboard)
+# The dashboard automatically loads all 4 files from data/ directory
+# with visual status indicators and ready confirmation
 ```
 
 ### ReconAgent

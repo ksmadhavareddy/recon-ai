@@ -63,6 +63,7 @@ graph TB
 │ Input       │  │ UnifiedDataLoader   │  │ Merged      │
 │ Sources     │─▶│ Agent               │─▶│ DataFrame   │
 │ (Files/API) │  │ (Auto-detect)       │  │             │
+│ Auto-Load   │  │ (Auto-Load)         │  │             │
 └─────────────┘  └─────────────────────┘  └─────────────┘
 ```
 
@@ -211,6 +212,58 @@ df = df.merge(funding, on="TradeID", how="left")
     "ML_Diagnosis"       # Machine learning predictions
 ]
 ```
+
+## 🚀 Auto-Load Architecture
+
+### Overview
+The system now includes an **auto-load functionality** that automatically loads all required input files from the `data/` directory, significantly streamlining the user experience.
+
+### Auto-Load Flow
+
+```
+┌─────────────┐  ┌─────────────────────┐  ┌─────────────┐
+│ data/       │  │ Auto-Load           │  │ Streamlit   │
+│ Directory   │─▶│ Function            │─▶│ Dashboard   │
+│ (4 files)   │  │ (Validation)       │  │ (Status)    │
+└─────────────┘  └─────────────────────┘  └─────────────┘
+        │                │                        │
+        ▼                ▼                        ▼
+┌─────────────┐  ┌─────────────────────┐  ┌─────────────┐
+│ File        │  │ Status              │  │ Ready       │
+│ Validation  │  │ Indicators          │  │ Confirmation│
+│ (Size/Type) │  │ (Success/Error)     │  │ Message     │
+└─────────────┘  └─────────────────────┘  └─────────────┘
+```
+
+### Implementation Components
+
+#### **Auto-Load Function**
+```python
+def auto_load_data_files(data_dir="data"):
+    """Auto-load all required files from data directory"""
+    required_files = [
+        'old_pricing.xlsx',
+        'new_pricing.xlsx', 
+        'trade_metadata.xlsx',
+        'funding_model_reference.xlsx'
+    ]
+    # Implementation details...
+```
+
+#### **Status Display Function**
+```python
+def display_file_status(file_status):
+    """Display loading status with visual indicators"""
+    # Implementation details...
+```
+
+### Benefits
+
+- **🚀 Speed**: Eliminates manual file upload process
+- **🎯 Accuracy**: Ensures all required files are loaded
+- **👁️ Transparency**: Clear visual feedback on loading status
+- **🛡️ Reliability**: Robust error handling and validation
+- **📱 User-Friendly**: Intuitive interface for non-technical users
 
 ## API Architecture
 

@@ -15,8 +15,8 @@ pip install -r requirements.txt
 
 ### 2. Prepare Your Data
 
-#### **Option A: File-based Data**
-Place your input files in the `data/` directory:
+#### **Option A: File-based Data (Auto-Load)**
+Place your input files in the `data/` directory for automatic loading:
 
 ```
 data/
@@ -25,6 +25,11 @@ data/
 ├── trade_metadata.xlsx   # Trade characteristics
 └── funding_model_reference.xlsx  # Funding information
 ```
+
+**🚀 Auto-Load Feature**: The Streamlit dashboard now includes an auto-load functionality that automatically loads all 4 files from the `data/` directory with visual status indicators and ready confirmation.
+
+#### **Option B: Manual File Upload**
+Alternatively, you can manually upload files through the Streamlit dashboard interface.
 
 #### **Option B: API-based Data**
 Configure API endpoints in `api_config.json`:
@@ -207,10 +212,29 @@ streamlit run app.py
 ```
 
 The dashboard provides:
-- Real-time data loading and processing
-- Interactive visualizations
-- API connection status monitoring
-- Export capabilities
+- **🚀 Auto-Load Functionality**: One-click loading of all 4 files from data/ directory
+- **📊 Visual Status Indicators**: Real-time loading status with success/error indicators
+- **✅ Ready Confirmation**: Clear indication when files are loaded and ready
+- **📈 Interactive Visualizations**: Charts, graphs, and analysis tools
+- **🔌 API Connection Monitoring**: Real-time API status and data quality
+- **💾 Export Capabilities**: Download reports and charts
+
+#### **Using Auto-Load Feature:**
+
+1. **Prepare Files**: Ensure all 4 required files are in the `data/` directory
+2. **Open Dashboard**: Navigate to http://localhost:8501
+3. **Select Data Source**: Choose "Files" as data source
+4. **Choose Auto-Load**: Select "Auto-load from data/" option
+5. **Monitor Status**: Watch real-time loading indicators
+6. **Confirm Ready**: Wait for "Ready for reconciliation analysis!" message
+7. **Run Analysis**: Click "Run Reconciliation Analysis"
+
+#### **Auto-Load Benefits:**
+- **Speed**: Eliminates manual file upload process
+- **Accuracy**: Ensures all required files are loaded
+- **Transparency**: Clear visual feedback on loading status
+- **Reliability**: Robust error handling and validation
+- **User-Friendly**: Intuitive interface for non-technical users
 
 ### REST API Server
 

@@ -67,7 +67,7 @@ This system implements an intelligent reconciliation workflow that combines rule
 
 | Agent | Role | Input | Output | Key Features |
 |-------|------|-------|--------|--------------|
-| **UnifiedDataLoaderAgent** | Data ingestion and merging | Files, APIs, Auto-detect, Hybrid | Merged DataFrame | Multi-source data fusion with fallback |
+| **UnifiedDataLoaderAgent** | Data ingestion and merging | Files, APIs, Auto-detect, Hybrid | Merged DataFrame | Multi-source data fusion with auto-load functionality |
 | **ReconAgent** | Mismatch detection | Merged data | Flagged mismatches | Configurable thresholds |
 | **AnalyzerAgent** | Rule-based diagnosis | Flagged data | Business diagnoses | Domain-specific rules |
 | **MLDiagnoserAgent** | ML prediction | Training data | ML diagnoses | LightGBM model |
@@ -248,6 +248,73 @@ We chose **LightGBM** as our primary ML model for the following reasons:
 - **Categorical Features**: Native support for product types, funding curves, CSA types
 - **Imbalanced Classes**: Handles diagnosis class imbalance effectively
 - **Feature Interactions**: Captures complex relationships in financial data
+
+## 🚀 Auto-Load Functionality
+
+### Overview
+The system now includes an **auto-load functionality** that automatically loads all required input files from the `data/` directory, significantly streamlining the user experience.
+
+### Features
+
+#### **One-Click Setup**
+- Automatically loads all 4 required files from the `data/` directory
+- No manual file upload required
+- Instant readiness for reconciliation analysis
+
+#### **Required Files**
+The auto-load feature expects these files in the `data/` directory:
+- `old_pricing.xlsx` - Previous pricing data
+- `new_pricing.xlsx` - Current pricing data  
+- `trade_metadata.xlsx` - Trade characteristics
+- `funding_model_reference.xlsx` - Funding information
+
+#### **Visual Status Indicators**
+- **✅ Success**: Green indicator for successfully loaded files
+- **❌ Error**: Red indicator for failed file loads
+- **📊 File Size**: Displays file sizes for transparency
+- **🔄 Progress**: Real-time loading status updates
+
+#### **Error Handling**
+- Graceful handling of missing files
+- Clear error messages for corrupted files
+- Fallback to manual upload if auto-load fails
+- Detailed status reporting for troubleshooting
+
+#### **Ready Confirmation**
+- Clear "Ready for reconciliation analysis!" message
+- Visual confirmation when all files are loaded
+- Automatic transition to analysis phase
+
+### Usage in Streamlit Dashboard
+
+1. **Open Dashboard**: Navigate to http://localhost:8501
+2. **Select Data Source**: Choose "Files" as data source
+3. **Choose Loading Method**: Select "Auto-load from data/" option
+4. **Watch Loading**: Monitor real-time status indicators
+5. **Confirm Ready**: Wait for "Ready for reconciliation analysis!" message
+6. **Run Analysis**: Click "Run Reconciliation Analysis"
+
+### Implementation Details
+
+The auto-load functionality is implemented in the Streamlit dashboard (`app.py`) with the following components:
+
+```python
+def auto_load_data_files(data_dir="data"):
+    """Auto-load all required files from data directory"""
+    # Implementation details...
+    
+def display_file_status(file_status):
+    """Display loading status with visual indicators"""
+    # Implementation details...
+```
+
+### Benefits
+
+- **🚀 Speed**: Eliminates manual file upload process
+- **🎯 Accuracy**: Ensures all required files are loaded
+- **👁️ Transparency**: Clear visual feedback on loading status
+- **🛡️ Reliability**: Robust error handling and validation
+- **📱 User-Friendly**: Intuitive interface for non-technical users
 
 ## 🔍 Business Rules
 

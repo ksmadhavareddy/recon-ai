@@ -10,5 +10,6 @@ class ReconAgent:
         df["PV_Mismatch"] = df["PV_Diff"].abs() > self.pv_tolerance
         df["Delta_Mismatch"] = df["Delta_Diff"].abs() > self.delta_tolerance
 
-        df["Any_Mismatch"] = df["PV_Mismatch"] | df["Delta_Mismatch"]
+        # Use fillna to handle NaN values before boolean operations
+        df["Any_Mismatch"] = df["PV_Mismatch"].fillna(False) | df["Delta_Mismatch"].fillna(False)
         return df
