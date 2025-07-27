@@ -5,14 +5,14 @@ from crew.agents.narrator_agent import NarratorAgent
 from crew.agents.ml_tool import MLDiagnoserAgent
 
 class ReconciliationCrew:
-    def __init__(self, data_dir="data/", api_config=None):
+    def __init__(self, data_dir="data/", api_config=None, pv_tolerance=1000, delta_tolerance=0.05):
         # Use unified data loader for all scenarios
         self.data_loader = UnifiedDataLoaderAgent(
             data_dir=data_dir,
             api_config=api_config
         )
         
-        self.recon_agent = ReconAgent()
+        self.recon_agent = ReconAgent(pv_tolerance=pv_tolerance, delta_tolerance=delta_tolerance)
         self.analyzer_agent = AnalyzerAgent()
         self.narrator_agent = NarratorAgent()
         self.ml_agent = MLDiagnoserAgent()

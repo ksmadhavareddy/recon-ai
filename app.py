@@ -178,10 +178,10 @@ def display_file_status(file_status):
         else:
             st.error(f"❌ No files loaded successfully")
 
-def run_reconciliation(data_dir=None, api_config=None, source="auto", trade_ids=None, date=None):
+def run_reconciliation(data_dir=None, api_config=None, source="auto", trade_ids=None, date=None, pv_tolerance=1000, delta_tolerance=0.05):
     """Run the reconciliation pipeline"""
     try:
-        crew = ReconciliationCrew(data_dir=data_dir, api_config=api_config)
+        crew = ReconciliationCrew(data_dir=data_dir, api_config=api_config, pv_tolerance=pv_tolerance, delta_tolerance=delta_tolerance)
         df = crew.run(source=source, trade_ids=trade_ids, date=date)
         return df, None, crew
     except Exception as e:
@@ -660,7 +660,9 @@ def main():
                 api_config=api_config,
                 source=source,
                 trade_ids=trade_ids,
-                date=date_input.strftime("%Y-%m-%d") if date_input else None
+                date=date_input.strftime("%Y-%m-%d") if date_input else None,
+                pv_tolerance=pv_tolerance,
+                delta_tolerance=delta_tolerance
             )
             
             if error:
