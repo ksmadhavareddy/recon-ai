@@ -205,9 +205,16 @@ class DynamicLabelGenerator:
         # Check for time-based patterns if date column exists
         if 'TradeDate' in df.columns:
             df['TradeDate'] = pd.to_datetime(df['TradeDate'])
-            daily_mismatches = df.groupby(df['TradeDate'].dt.date)['Any_Mismatch'].sum()
-            if daily_mismatches.std() > 2:
-                patterns.append("Temporal clustering of mismatches detected")
+            # Use Any_Mismatch if available, otherwise create from PV_Mismatch and Delta_Mismatch
+            mismatch_col = 'Any_Mismatch' if 'Any_Mismatch' in df.columns else None
+            if mismatch_col is None and 'PV_Mismatch' in df.columns and 'Delta_Mismatch' in df.columns:
+                df['Any_Mismatch'] = df['PV_Mismatch'] | df['Delta_Mismatch']
+                mismatch_col = 'Any_Mismatch'
+            
+            if mismatch_col:
+                daily_mismatches = df.groupby(df['TradeDate'].dt.date)[mismatch_col].sum()
+                if daily_mismatches.std() > 2:
+                    patterns.append("Temporal clustering of mismatches detected")
         
         return patterns
     
@@ -217,10 +224,17 @@ class DynamicLabelGenerator:
         
         if 'ProductType' in df.columns:
             # Check for product-specific issues
-            product_mismatches = df.groupby('ProductType')['Any_Mismatch'].mean()
-            for product, mismatch_rate in product_mismatches.items():
-                if mismatch_rate > 0.5:
-                    patterns.append(f"High mismatch rate for {product} products")
+            # Use Any_Mismatch if available, otherwise create from PV_Mismatch and Delta_Mismatch
+            mismatch_col = 'Any_Mismatch' if 'Any_Mismatch' in df.columns else None
+            if mismatch_col is None and 'PV_Mismatch' in df.columns and 'Delta_Mismatch' in df.columns:
+                df['Any_Mismatch'] = df['PV_Mismatch'] | df['Delta_Mismatch']
+                mismatch_col = 'Any_Mismatch'
+            
+            if mismatch_col:
+                product_mismatches = df.groupby('ProductType')[mismatch_col].mean()
+                for product, mismatch_rate in product_mismatches.items():
+                    if mismatch_rate > 0.5:
+                        patterns.append(f"High mismatch rate for {product} products")
         
         return patterns
     
