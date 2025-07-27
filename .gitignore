@@ -115,6 +115,9 @@ dmypy.json
 ehthumbs.db
 Thumbs.db
 
+# Streamlit local configuration
+.streamlit/
+
 # Project specific
 catboost_info/
 *.xlsx
