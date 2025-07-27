@@ -757,7 +757,11 @@ def main():
                     st.session_state.selected_product_type = selected_product_type
                 
                 with col3:
-                    diagnoses = ["All"] + list(df['PV_Diagnosis'].unique()) + list(df['Delta_Diagnosis'].unique())
+                    # Get unique diagnoses from both PV and Delta columns, avoiding duplicates
+                    pv_diagnoses = set(df['PV_Diagnosis'].unique())
+                    delta_diagnoses = set(df['Delta_Diagnosis'].unique())
+                    all_diagnoses = pv_diagnoses.union(delta_diagnoses)
+                    diagnoses = ["All"] + sorted(list(all_diagnoses))
                     selected_diagnosis = st.selectbox(
                         "Filter by Diagnosis",
                         options=diagnoses,
@@ -940,7 +944,11 @@ def main():
                 st.session_state.selected_product_type = selected_product_type
             
             with col3:
-                diagnoses = ["All"] + list(df['PV_Diagnosis'].unique()) + list(df['Delta_Diagnosis'].unique())
+                # Get unique diagnoses from both PV and Delta columns, avoiding duplicates
+                pv_diagnoses = set(df['PV_Diagnosis'].unique())
+                delta_diagnoses = set(df['Delta_Diagnosis'].unique())
+                all_diagnoses = pv_diagnoses.union(delta_diagnoses)
+                diagnoses = ["All"] + sorted(list(all_diagnoses))
                 selected_diagnosis = st.selectbox(
                     "Filter by Diagnosis",
                     options=diagnoses,
