@@ -33,7 +33,7 @@ labels = label_generator.generate_labels(df, include_discovered=True, include_hi
 
 ### **Components:**
 
-1. **Business Rules Engine** (`analyzer_agent.py`)
+1. **Dynamic Business Rules Engine** (`analyzer_agent.py`)
 2. **Dynamic Label Generator** (`dynamic_label_generator.py`)
 3. **ML Diagnoser Agent** (`ml_tool.py`)
 4. **Pattern Discovery Engine**
@@ -41,7 +41,7 @@ labels = label_generator.generate_labels(df, include_discovered=True, include_hi
 
 ### **Data Flow:**
 ```
-Trade Data → Business Rules → Analyzer Agent → Dynamic Label Generator → ML Model → Predictions
+Trade Data → Dynamic Business Rules → Analyzer Agent → Dynamic Label Generator → ML Model → Predictions
 ```
 
 ## 📊 Label Categories
@@ -220,6 +220,25 @@ def get_label_statistics(self) -> Dict[str, Any]:
 
 ## 🔄 Real-time Implementation
 
+### **Integration with Analyzer Agent:**
+
+```python
+class AnalyzerAgent:
+    def __init__(self, label_generator: Optional[DynamicLabelGenerator] = None):
+        self.label_generator = label_generator or DynamicLabelGenerator()
+        self.pv_agent = PVAnalysisAgent(self.label_generator)
+        self.delta_agent = DeltaAnalysisAgent(self.label_generator)
+    
+    def apply(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Apply dynamic business rules
+        df["PV_Diagnosis"] = df.apply(self.pv_agent.analyze, axis=1)
+        df["Delta_Diagnosis"] = df.apply(self.delta_agent.analyze, axis=1)
+        
+        # Update label generator with results
+        self._update_label_generator(df)
+        return df
+```
+
 ### **Integration with ML Model:**
 
 ```python
@@ -257,6 +276,24 @@ def train(self, df: pd.DataFrame, label_col: str = 'PV_Diagnosis', **kwargs):
         'delta_diagnoses': df['Delta_Diagnosis'].unique().tolist()
     }
     self.label_generator.update_from_analysis(df, analyzer_output)
+```
+
+### **Dynamic Business Rules:**
+
+```python
+# Add new business rules dynamically
+analyzer.add_business_rule(
+    rule_type='pv_rules',
+    condition="FundingCurve == 'SOFR' and ModelVersion != 'v2024.4'",
+    label="SOFR transition impact – curve basis changed",
+    priority=2,
+    category="curve_model"
+)
+
+# Get current business rules
+rules = analyzer.get_business_rules()
+print(f"PV rules: {len(rules['pv_rules'])}")
+print(f"Delta rules: {len(rules['delta_rules'])}")
 ```
 
 ## 🎯 Benefits of Dynamic Labels
