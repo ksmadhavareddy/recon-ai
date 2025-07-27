@@ -8,21 +8,13 @@ import numpy as np
 import logging
 import time
 from typing import Dict, List, Tuple, Optional, Any
+from .dynamic_label_generator import DynamicLabelGenerator
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MLDiagnoserAgent:
-    ALL_POSSIBLE_LABELS = [
-        "New trade – no prior valuation",
-        "Trade dropped from new model",
-        "Legacy LIBOR curve with outdated model – PV likely shifted",
-        "CSA changed post-clearing – funding basis moved",
-        "Vol sensitivity likely – delta impact due to model curve shift",
-        "Within tolerance"
-    ]
-
     def __init__(self, model_path="models/lightgbm_diagnoser.txt"):
         self.model_path = model_path
         self.model = None
@@ -34,8 +26,17 @@ class MLDiagnoserAgent:
         ]
         self.categorical_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
         
+        # Initialize dynamic label generator
+        self.label_generator = DynamicLabelGenerator()
+        
         if os.path.exists(self.model_path):
             self.load_model()
+    
+    @property
+    def ALL_POSSIBLE_LABELS(self) -> List[str]:
+        """Dynamic property that generates labels based on current data and patterns"""
+        # This will be updated during training/prediction based on actual data
+        return self.label_generator.generate_labels(pd.DataFrame(), include_discovered=False)
 
     def prepare_features_and_labels(self, df: pd.DataFrame, label_col: str = 'PV_Diagnosis') -> Tuple[pd.DataFrame, np.ndarray]:
         """
@@ -69,10 +70,13 @@ class MLDiagnoserAgent:
         # Initialize or use existing label encoder
         if self.label_encoder is None:
             self.label_encoder = LabelEncoder()
-            # Fit on the union of all possible labels and those present in y
-            all_labels = pd.Series(list(set(self.ALL_POSSIBLE_LABELS) | set(y.unique())))
+            # Generate dynamic labels based on current data
+            dynamic_labels = self.label_generator.generate_labels(df, include_discovered=True, include_historical=True)
+            # Fit on the union of dynamic labels and those present in y
+            all_labels = pd.Series(list(set(dynamic_labels) | set(y.unique())))
             self.label_encoder.fit(all_labels)
             logger.info(f"Label encoder fitted with {len(self.label_encoder.classes_)} classes")
+            logger.info(f"Dynamic labels generated: {len(dynamic_labels)} labels")
         
         y_enc = self.label_encoder.transform(y)
         
@@ -170,6 +174,13 @@ class MLDiagnoserAgent:
             'training_time_seconds': training_time,
             'model_parameters': params
         }
+        
+        # Update label generator with current analysis results
+        analyzer_output = {
+            'pv_diagnoses': df['PV_Diagnosis'].unique().tolist() if 'PV_Diagnosis' in df.columns else [],
+            'delta_diagnoses': df['Delta_Diagnosis'].unique().tolist() if 'Delta_Diagnosis' in df.columns else []
+        }
+        self.label_generator.update_from_analysis(df, analyzer_output)
         
         logger.info(f"✅ Training completed in {training_time:.2f}s")
         logger.info(f"Training accuracy: {train_accuracy:.2%}")
