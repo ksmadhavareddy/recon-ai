@@ -1,0 +1,114 @@
+{
+  "historical_patterns": {
+    "pv_patterns": [
+      "Multiple funding curves detected - curve-specific issues",
+      "Model version differences detected - version-specific issues",
+      "CSA type differences detected - clearing vs bilateral issues"
+    ],
+    "delta_patterns": [
+      "Product-specific delta issues detected"
+    ],
+    "temporal_patterns": [],
+    "product_patterns": [
+      "High mismatch rate for Option products",
+      "High mismatch rate for Swap products"
+    ]
+  },
+  "label_frequency": {
+    "Within tolerance": 39,
+    "Legacy LIBOR curve with outdated model \u2013 PV likely shifted": 10,
+    "Vol sensitivity likely \u2013 delta impact due to model curve shift": 1
+  },
+  "last_update": "2025-07-27T14:07:37.955612",
+  "business_rules": {
+    "pv_rules": [
+      {
+        "condition": "PV_old is None",
+        "label": "New trade \u2013 no prior valuation",
+        "priority": 1,
+        "category": "trade_lifecycle"
+      },
+      {
+        "condition": "PV_new is None",
+        "label": "Trade dropped from new model",
+        "priority": 1,
+        "category": "trade_lifecycle"
+      },
+      {
+        "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+        "label": "Legacy LIBOR curve with outdated model \u2013 PV likely shifted",
+        "priority": 2,
+        "category": "curve_model"
+      },
+      {
+        "condition": "CSA_Type == 'Cleared' and PV_Mismatch == True",
+        "label": "CSA changed post-clearing \u2013 funding basis moved",
+        "priority": 2,
+        "category": "funding_csa"
+      },
+      {
+        "condition": "PV_Mismatch == False",
+        "label": "Within tolerance",
+        "priority": 0,
+        "category": "tolerance"
+      }
+    ],
+    "delta_rules": [
+      {
+        "condition": "ProductType == 'Option' and Delta_Mismatch == True",
+        "label": "Vol sensitivity likely \u2013 delta impact due to model curve shift",
+        "priority": 2,
+        "category": "volatility"
+      },
+      {
+        "condition": "Delta_Mismatch == False",
+        "label": "Within tolerance",
+        "priority": 0,
+        "category": "tolerance"
+      }
+    ]
+  },
+  "domain_knowledge": {
+    "trade_lifecycle": [
+      "New trade \u2013 no prior valuation",
+      "Trade dropped from new model",
+      "Trade amended with new terms",
+      "Trade matured or expired"
+    ],
+    "curve_model": [
+      "Legacy LIBOR curve with outdated model \u2013 PV likely shifted",
+      "SOFR transition impact \u2013 curve basis changed",
+      "Model version update \u2013 methodology changed",
+      "Curve interpolation changed \u2013 end points affected"
+    ],
+    "funding_csa": [
+      "CSA changed post-clearing \u2013 funding basis moved",
+      "Collateral threshold changed \u2013 funding cost shifted",
+      "New clearing house \u2013 margin requirements different",
+      "Bilateral to cleared transition \u2013 funding curve changed"
+    ],
+    "volatility": [
+      "Vol sensitivity likely \u2013 delta impact due to model curve shift",
+      "Vol surface updated \u2013 smile/skew changed",
+      "Market stress \u2013 vol regime shifted",
+      "Option-specific model change \u2013 vol dynamics affected"
+    ],
+    "tolerance": [
+      "Within tolerance",
+      "Minor deviation \u2013 no action required",
+      "Acceptable range \u2013 monitor for trends"
+    ],
+    "data_quality": [
+      "Missing data \u2013 incomplete valuation",
+      "Data corruption \u2013 invalid inputs",
+      "Timing mismatch \u2013 stale data",
+      "System error \u2013 calculation failed"
+    ],
+    "market_events": [
+      "Market volatility \u2013 broad repricing",
+      "Credit event \u2013 counterparty risk changed",
+      "Regulatory change \u2013 capital requirements updated",
+      "Liquidity crisis \u2013 funding costs spiked"
+    ]
+  }
+}

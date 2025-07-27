@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AI-Powered Reconciliation System follows a modular, agent-based architecture inspired by CrewAI patterns. Each agent specializes in a specific task and communicates through structured data flows.
+The AI-Powered Reconciliation System follows a modular, agent-based architecture inspired by CrewAI patterns. Each agent specializes in a specific task and communicates through structured data flows, featuring **dynamic label generation** for real-time diagnosis scenarios.
 
 ## System Architecture Diagram
 
@@ -20,21 +20,24 @@ graph TB
         F[UnifiedDataLoaderAgent]
         G[ReconAgent]
         H[AnalyzerAgent]
-        I[MLDiagnoserAgent]
-        J[NarratorAgent]
+        I[DynamicLabelGenerator]
+        J[MLDiagnoserAgent]
+        K[NarratorAgent]
     end
     
     subgraph "Data Processing"
-        K[Merged DataFrame]
-        L[Flagged Mismatches]
-        M[Rule-based Diagnoses]
-        N[ML Predictions]
+        L[Merged DataFrame]
+        M[Flagged Mismatches]
+        N[Dynamic Rule-based Diagnoses]
+        O[Dynamic Labels]
+        P[ML Predictions with Dynamic Labels]
     end
     
     subgraph "Output Layer"
-        O[Excel Report]
-        P[Trained ML Model]
-        Q[Summary Statistics]
+        Q[Excel Report]
+        R[Trained ML Model]
+        S[Summary Statistics]
+        T[Dynamic Label Patterns]
     end
     
     A --> F
@@ -42,17 +45,85 @@ graph TB
     C --> F
     D --> F
     E --> F
-    F --> K
-    K --> G
-    G --> L
-    L --> H
-    H --> M
-    M --> I
-    I --> N
-    N --> J
-    J --> O
-    J --> Q
-    I --> P
+    F --> L
+    L --> G
+    G --> M
+    M --> H
+    H --> N
+    N --> I
+    I --> O
+    O --> J
+    J --> P
+    P --> K
+    K --> Q
+    K --> S
+    J --> R
+    I --> T
+```
+
+## Dynamic Label Generation Architecture
+
+### Core Components
+
+```mermaid
+graph TB
+    subgraph "Dynamic Label Generator"
+        A[Business Rules Engine]
+        B[Pattern Discovery]
+        C[Domain Knowledge]
+        D[Historical Analysis]
+    end
+    
+    subgraph "Label Generation Process"
+        E[Rule Application]
+        F[Pattern Analysis]
+        G[Knowledge Integration]
+        H[Historical Learning]
+    end
+    
+    subgraph "Output"
+        I[Dynamic Labels]
+        J[Pattern Statistics]
+        K[Historical Patterns]
+    end
+    
+    A --> E
+    B --> F
+    C --> G
+    D --> H
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    F --> J
+    H --> K
+```
+
+### Business Rules Engine
+
+```mermaid
+graph LR
+    subgraph "Business Rules"
+        A[PV Rules]
+        B[Delta Rules]
+        C[Priority System]
+        D[Category Classification]
+    end
+    
+    subgraph "Rule Application"
+        E[Condition Evaluation]
+        F[Safe Expression Parsing]
+        G[Priority Sorting]
+        H[Label Assignment]
+    end
+    
+    A --> E
+    B --> E
+    C --> G
+    D --> H
+    E --> F
+    F --> G
+    G --> H
 ```
 
 ## Data Flow Architecture
@@ -75,17 +146,29 @@ graph TB
 └─────────────┘  └─────────────┘  └─────────────┘
 ```
 
-### Phase 3: Analysis & Prediction
+### Phase 3: Dynamic Analysis & Prediction
 ```
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Flagged     │  │ Analyzer    │  │ Rule-based  │
-│ Data        │─▶│ Agent       │─▶│ Diagnoses   │
+│ Flagged     │  │ Analyzer    │  │ Dynamic     │
+│ Data        │─▶│ Agent       │─▶│ Rule-based  │
+│             │  │ (Dynamic    │  │ Diagnoses   │
+│             │  │  Rules)     │  │             │
 └─────────────┘  └─────────────┘  └─────────────┘
                         │
                         ▼
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ Training    │  │ MLDiagnoser │  │ ML          │
-│ Data        │─▶│ Agent       │─▶│ Predictions │
+│ Dynamic     │  │ Dynamic     │  │ Dynamic     │
+│ Diagnoses   │─▶│ Label       │─▶│ Labels      │
+│             │  │ Generator   │  │             │
+└─────────────┘  └─────────────┘  └─────────────┘
+                        │
+                        ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Dynamic     │  │ MLDiagnoser │  │ ML          │
+│ Labels      │─▶│ Agent       │─▶│ Predictions │
+│             │  │ (with       │  │ with        │
+│             │  │  Dynamic    │  │  Dynamic    │
+│             │  │  Labels)    │  │  Labels      │
 └─────────────┘  └─────────────┘  └─────────────┘
 ```
 
@@ -94,444 +177,321 @@ graph TB
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
 │ All Results │  │ Narrator    │  │ Excel       │
 │ (Combined)  │─▶│ Agent       │─▶│ Report      │
+│ with Dynamic│  │             │  │ with        │
+│ Labels      │  │             │  │ Dynamic     │
+│             │  │             │  │ Labels      │
 └─────────────┘  └─────────────┘  └─────────────┘
 ```
 
 ## Agent Architecture Details
 
 ### UnifiedDataLoaderAgent
-**Purpose**: Unified data ingestion and preprocessing
-**Input**: Multiple Excel files and/or API endpoints
-**Output**: Merged DataFrame with all required data
-**Key Features**:
-- **Multi-source loading**: Files, APIs, auto-detect, hybrid
-- **Automatic fallback**: API → Files fallback mechanism
-- **Data validation**: Quality checks and error handling
-- **Flexible filtering**: Trade IDs and date filtering
-- **Consistent interface**: Single `load_data()` method
 
-**Source Options**:
-- `"files"` - Load from Excel files only
-- `"api"` - Load from API endpoints only
-- `"auto"` - Auto-detect best available source (default)
-- `"hybrid"` - Load from both sources and merge
+**Purpose**: Loads and merges data from multiple sources with auto-load functionality.
+
+**Key Features**:
+- **Multi-source Support**: Files, APIs, Auto-detect, Hybrid
+- **Auto-load Functionality**: Automatic loading from data/ directory
+- **Data Validation**: Ensures data quality and completeness
+- **Error Handling**: Graceful handling of missing or corrupted files
+
+**Data Flow**:
+```
+Input Files/APIs → Data Validation → Merging → Output DataFrame
+```
 
 ### ReconAgent
-**Purpose**: Mismatch detection and flagging
-**Input**: Merged DataFrame from UnifiedDataLoaderAgent
-**Output**: DataFrame with mismatch flags
-**Key Features**:
-- **Configurable thresholds**: PV and Delta tolerance settings
-- **Boolean flags**: PV_Mismatch, Delta_Mismatch, Any_Mismatch
-- **Difference calculation**: PV_Diff, Delta_Diff columns
 
-### AnalyzerAgent
-**Purpose**: Rule-based business logic diagnosis
-**Input**: Flagged data from ReconAgent
-**Output**: Rule-based diagnoses
-**Key Features**:
-- **Domain-specific rules**: Funding-aware diagnostics
-- **Business logic**: LIBOR, CSA, model version analysis
-- **Comprehensive coverage**: All common mismatch scenarios
+**Purpose**: Detects PV and Delta mismatches using configurable thresholds.
 
-### MLDiagnoserAgent
-**Purpose**: Machine learning diagnosis prediction
-**Input**: Training data and features
-**Output**: ML predictions and trained model
 **Key Features**:
-- **LightGBM model**: Gradient boosting with categorical features
-- **Automatic training**: Uses rule-based diagnoses as labels
-- **Model persistence**: Saves trained model for reuse
-- **Feature engineering**: PV/Delta values and metadata
+- **Configurable Thresholds**: PV and Delta tolerance settings
+- **Boolean Flagging**: Clear mismatch identification
+- **Performance Optimization**: Efficient processing for large datasets
+
+**Data Flow**:
+```
+Merged DataFrame → Threshold Comparison → Mismatch Flags → Output
+```
+
+### AnalyzerAgent (Enhanced)
+
+**Purpose**: Provides **dynamic rule-based diagnosis** using configurable business rules.
+
+**Key Features**:
+- **Dynamic Business Rules**: Configurable rules for diagnosis generation
+- **Safe Condition Evaluation**: Safely evaluates string-based conditions
+- **Rule Management**: Add, modify, and manage business rules
+- **Integration**: Updates the label generator with analysis results
+
+**Components**:
+- **PVAnalysisAgent**: Analyzes PV-related issues using dynamic rules
+- **DeltaAnalysisAgent**: Analyzes Delta-related issues using dynamic rules
+- **Rule Engine**: Applies business rules with priority sorting
+
+**Data Flow**:
+```
+Flagged Data → Business Rules → Condition Evaluation → Dynamic Diagnoses
+```
+
+### DynamicLabelGenerator (New)
+
+**Purpose**: Generates diagnosis labels in real-time based on business rules, patterns, and domain knowledge.
+
+**Key Features**:
+- **Business Rules Engine**: Loads and applies configurable business rules
+- **Pattern Discovery**: Analyzes data to identify new diagnosis patterns
+- **Domain Knowledge**: Industry-specific diagnosis categories
+- **Historical Tracking**: Maintains patterns and label frequency
+- **Real-time Updates**: Updates based on analysis results
+
+**Components**:
+- **Business Rules Engine**: Applies configurable rules with priority
+- **Pattern Discovery**: Identifies PV, Delta, temporal, and product patterns
+- **Domain Knowledge**: Industry-specific diagnosis categories
+- **Historical Analysis**: Tracks pattern frequency and trends
+
+**Data Flow**:
+```
+Analysis Results → Business Rules → Pattern Discovery → Domain Knowledge → Dynamic Labels
+```
+
+### MLDiagnoserAgent (Enhanced)
+
+**Purpose**: ML-powered diagnosis predictions using **dynamically generated labels**.
+
+**Key Features**:
+- **Dynamic Label Integration**: Uses dynamically generated labels for training
+- **Adaptive Training**: Model adapts to new patterns and rules
+- **Real-time Learning**: Incorporates new diagnoses automatically
+- **LightGBM Model**: Fast and efficient gradient boosting
+
+**Data Flow**:
+```
+Training Data → Dynamic Labels → Feature Engineering → Model Training → Predictions
+```
 
 ### NarratorAgent
-**Purpose**: Report generation and summarization
-**Input**: All analysis results
-**Output**: Excel report and summary statistics
+
+**Purpose**: Generates comprehensive reports and summaries.
+
 **Key Features**:
-- **Excel export**: Comprehensive reconciliation report
-- **Summary statistics**: Key metrics and insights
-- **Formatted output**: Professional report structure
+- **Excel Report Generation**: Complete reconciliation reports
+- **Summary Statistics**: Key metrics and insights
+- **Dynamic Label Integration**: Includes dynamic labels in reports
 
-## Data Architecture
-
-### Input Data Structure
-
-#### Excel Files (File-based Loading)
+**Data Flow**:
 ```
-data/
-├── old_pricing.xlsx          # Previous pricing data
-├── new_pricing.xlsx          # Current pricing data
-├── trade_metadata.xlsx       # Trade characteristics
-└── funding_model_reference.xlsx  # Funding information
+All Results → Report Generation → Excel Output → Summary Statistics
 ```
 
-#### API Endpoints (API-based Loading)
-```json
-{
-  "base_url": "https://api.example.com",
-  "endpoints": {
-    "old_pricing": "/api/v1/pricing/old",
-    "new_pricing": "/api/v1/pricing/new",
-    "trade_metadata": "/api/v1/trades/metadata",
-    "funding_reference": "/api/v1/funding/reference"
-  }
-}
-```
+## Dynamic Label Generation Process
 
-### Data Merging Strategy
-
-The UnifiedDataLoaderAgent implements a robust merging strategy:
+### 1. Business Rules Application
 
 ```python
-# Core merging logic
-df = old.merge(new, on="TradeID", how="outer", suffixes=('_old', '_new'))
-df = df.merge(meta, on="TradeID", how="left")
-df = df.merge(funding, on="TradeID", how="left")
-```
-
-**Merging Features**:
-- **Outer joins**: Preserves all trades from both old and new data
-- **Left joins**: Adds metadata and funding information
-- **Suffix handling**: Prevents column name conflicts
-- **Missing value handling**: Graceful handling of incomplete data
-
-### Output Data Structure
-
-#### Excel Report Columns
-```python
-[
-    "TradeID",           # Unique trade identifier
-    "PV_old", "PV_new",  # Present values
-    "Delta_old", "Delta_new",  # Delta risk measures
-    "PV_Diff", "Delta_Diff",   # Absolute differences
-    "PV_Mismatch", "Delta_Mismatch",  # Boolean flags
-    "Any_Mismatch",      # Overall mismatch indicator
-    "ProductType", "FundingCurve", "CSA_Type", "ModelVersion",  # Metadata
-    "PV_Diagnosis", "Delta_Diagnosis",  # Rule-based diagnoses
-    "ML_Diagnosis"       # Machine learning predictions
-]
-```
-
-## 🚀 Auto-Load Architecture
-
-### Overview
-The system now includes an **auto-load functionality** that automatically loads all required input files from the `data/` directory, significantly streamlining the user experience.
-
-### Auto-Load Flow
-
-```
-┌─────────────┐  ┌─────────────────────┐  ┌─────────────┐
-│ data/       │  │ Auto-Load           │  │ Streamlit   │
-│ Directory   │─▶│ Function            │─▶│ Dashboard   │
-│ (4 files)   │  │ (Validation)       │  │ (Status)    │
-└─────────────┘  └─────────────────────┘  └─────────────┘
-        │                │                        │
-        ▼                ▼                        ▼
-┌─────────────┐  ┌─────────────────────┐  ┌─────────────┐
-│ File        │  │ Status              │  │ Ready       │
-│ Validation  │  │ Indicators          │  │ Confirmation│
-│ (Size/Type) │  │ (Success/Error)     │  │ Message     │
-└─────────────┘  └─────────────────────┘  └─────────────┘
-```
-
-### Implementation Components
-
-#### **Auto-Load Function**
-```python
-def auto_load_data_files(data_dir="data"):
-    """Auto-load all required files from data directory"""
-    required_files = [
-        'old_pricing.xlsx',
-        'new_pricing.xlsx', 
-        'trade_metadata.xlsx',
-        'funding_model_reference.xlsx'
+# Example business rule application
+business_rules = {
+    "pv_rules": [
+        {
+            "condition": "PV_old is None",
+            "label": "New trade – no prior valuation",
+            "priority": 1,
+            "category": "trade_lifecycle"
+        },
+        {
+            "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+            "label": "Legacy LIBOR curve with outdated model – PV likely shifted",
+            "priority": 2,
+            "category": "curve_model"
+        }
     ]
-    # Implementation details...
-```
-
-#### **Status Display Function**
-```python
-def display_file_status(file_status):
-    """Display loading status with visual indicators"""
-    # Implementation details...
-```
-
-### Benefits
-
-- **🚀 Speed**: Eliminates manual file upload process
-- **🎯 Accuracy**: Ensures all required files are loaded
-- **👁️ Transparency**: Clear visual feedback on loading status
-- **🛡️ Reliability**: Robust error handling and validation
-- **📱 User-Friendly**: Intuitive interface for non-technical users
-
-## API Architecture
-
-### REST API Server
-
-The system includes a FastAPI-based REST API server for external integrations:
-
-#### **Core Endpoints**
-- `GET /api/health` - Health check and status
-- `GET /api/excel` - List available Excel files
-- `GET /api/excel/{filename}` - Download specific Excel file
-- `GET /api/database` - List database tables
-- `GET /api/database/{table}` - Query specific table
-- `GET /api/merged` - Get merged reconciliation data
-- `GET /api/search` - Search across tables and columns
-
-#### **Features**
-- **SQLite database**: Persistent storage for API data
-- **CORS support**: Web application integration
-- **Auto-generated docs**: Interactive API documentation
-- **Pagination**: Handle large datasets efficiently
-- **Search capabilities**: Full-text search across data
-
-### External API Integration
-
-The UnifiedDataLoaderAgent supports external API integration:
-
-#### **Configuration**
-```json
-{
-  "base_url": "https://api.example.com",
-  "api_key": "your_api_key",
-  "timeout": 30,
-  "endpoints": {
-    "old_pricing": "/api/v1/pricing/old",
-    "new_pricing": "/api/v1/pricing/new",
-    "trade_metadata": "/api/v1/trades/metadata",
-    "funding_reference": "/api/v1/funding/reference"
-  }
 }
 ```
 
-#### **Features**
-- **Authentication**: API key and Bearer token support
-- **Error handling**: Graceful failure and fallback
-- **Connection pooling**: Efficient HTTP session management
-- **Data validation**: Quality checks for API responses
-- **Filtering**: Trade ID and date-based filtering
+### 2. Pattern Discovery
 
-## ML Model Architecture
+The system automatically discovers patterns in the data:
 
-### Feature Engineering
+- **PV Patterns**: Analyzes PV differences and trends
+- **Delta Patterns**: Identifies delta sensitivity patterns
+- **Temporal Patterns**: Time-based analysis and seasonality
+- **Product Patterns**: Product-specific diagnosis patterns
 
-#### **Numerical Features**
-- `PV_old`, `PV_new` - Present values from old/new models
-- `Delta_old`, `Delta_new` - Delta risk measures
-- `PV_Diff`, `Delta_Diff` - Absolute differences
+### 3. Domain Knowledge Integration
 
-#### **Categorical Features**
-- `ProductType` - Financial product type (Swap, Option, etc.)
-- `FundingCurve` - Funding curve identifier (LIBOR, SOFR, etc.)
-- `CSA_Type` - Credit Support Annex type
-- `ModelVersion` - Model version identifier
+Comprehensive domain knowledge categories:
 
-### Model Training Process
+- **Trade Lifecycle**: New trades, dropped trades, amendments
+- **Curve/Model**: LIBOR transition, model updates, curve changes
+- **Funding/CSA**: Clearing changes, collateral updates, margin requirements
+- **Volatility**: Option sensitivity, delta impacts, model shifts
+- **Data Quality**: Missing data, validation issues, format problems
+- **Market Events**: Market disruptions, regulatory changes
 
-1. **Data Preparation**: Load and merge all required data
-2. **Feature Engineering**: Extract numerical and categorical features
-3. **Label Encoding**: Convert rule-based diagnoses to numerical labels
-4. **Model Training**: Train LightGBM classifier
-5. **Model Persistence**: Save trained model for future use
+### 4. Historical Learning
 
-### Prediction Process
+The system learns from previous analyses:
 
-1. **Model Loading**: Load trained LightGBM model
-2. **Feature Preparation**: Prepare features for new data
-3. **Prediction**: Generate ML predictions
-4. **Label Decoding**: Convert numerical predictions back to diagnoses
+- **Pattern Frequency**: Tracks how often patterns occur
+- **Label Statistics**: Maintains label usage statistics
+- **Trend Analysis**: Identifies emerging patterns and trends
 
-### Model Performance
+## Business Rules Categories
 
-- **Training Time**: <1 second for typical datasets
-- **Prediction Time**: <0.1 second per trade
-- **Model Size**: ~1MB (LightGBM model)
-- **Accuracy**: Depends on data quality and feature relevance
+### Trade Lifecycle
+- New trade – no prior valuation
+- Trade dropped from new model
+- Trade amended with new terms
+- Trade matured or expired
 
-### Why LightGBM?
+### Curve/Model
+- Legacy LIBOR curve with outdated model
+- SOFR transition impact – curve basis changed
+- Model version update – methodology changed
+- Curve interpolation changed – end points affected
 
-We chose **LightGBM** as our primary ML model for the following reasons:
+### Funding/CSA
+- CSA changed post-clearing – funding basis moved
+- Collateral threshold changed – funding cost shifted
+- New clearing house – margin requirements different
+- Bilateral to cleared transition – funding curve changed
 
-#### **🚀 Performance Advantages:**
-- **Speed**: LightGBM is significantly faster than CatBoost and XGBoost for both training and prediction
-- **Memory Efficiency**: Uses histogram-based algorithm requiring less memory
-- **Scalability**: Handles large datasets (100M+ records) efficiently
+### Volatility
+- Vol sensitivity likely – delta impact due to model curve shift
+- Option pricing model update – volatility surface changed
+- Market volatility spike – delta hedging impact
+- Volatility smile adjustment – skew changes
 
-#### **📊 Technical Benefits:**
-- **Native Categorical Support**: Handles categorical features without preprocessing
-- **Gradient-based One-Side Sampling (GOSS)**: Reduces training time while maintaining accuracy
-- **Exclusive Feature Bundling (EFB)**: Reduces memory usage and speeds up training
-- **Leaf-wise Tree Growth**: More efficient than level-wise growth
+### Data Quality
+- Missing pricing data – incomplete valuation
+- Data format mismatch – parsing errors
+- Validation failures – business rule violations
+- Timestamp inconsistencies – temporal misalignment
 
-#### **🏢 Business Benefits:**
-- **Real-time Predictions**: Fast inference for live reconciliation workflows
-- **Resource Efficiency**: Lower computational requirements for production deployment
-- **Model Interpretability**: Better feature importance analysis for business insights
+### Market Events
+- Market disruption – liquidity impact
+- Regulatory change – compliance requirements
+- Central bank action – rate environment shift
+- Credit event – counterparty risk change
 
-#### **Comparison with Alternatives:**
+## Configuration Management
 
-| Model | Speed | Memory | Categorical Support | Scalability | Production Ready |
-|-------|-------|--------|-------------------|-------------|------------------|
-| **LightGBM** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| CatBoost | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| XGBoost | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Random Forest | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+### Business Rules Configuration
 
-#### **Specific Advantages for Reconciliation:**
-- **Financial Data Handling**: Excellent performance on tabular financial data
-- **Categorical Features**: Native support for product types, funding curves, CSA types
-- **Imbalanced Classes**: Handles diagnosis class imbalance effectively
-- **Feature Interactions**: Captures complex relationships in financial data
-
-## System Integration
-
-### Command Line Interface
-
-The `pipeline.py` script provides a flexible command-line interface:
-
-```bash
-# Basic usage with auto-detect
-python pipeline.py
-
-# File-based loading
-python pipeline.py --source files
-
-# API-based loading
-python pipeline.py --source api --api-config config.json
-
-# Hybrid loading
-python pipeline.py --source hybrid --api-config config.json
-
-# With filtering
-python pipeline.py --source api --api-config config.json --trade-ids TRADE001 TRADE002
+```python
+# Configure business rules for diagnosis generation
+business_rules = {
+    "pv_rules": [
+        {
+            "condition": "PV_old is None",
+            "label": "New trade – no prior valuation",
+            "priority": 1,
+            "category": "trade_lifecycle"
+        },
+        {
+            "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+            "label": "Legacy LIBOR curve with outdated model",
+            "priority": 2,
+            "category": "curve_model"
+        }
+    ],
+    "delta_rules": [
+        {
+            "condition": "ProductType == 'Option' and Delta_Mismatch == True",
+            "label": "Vol sensitivity likely – delta impact",
+            "priority": 2,
+            "category": "volatility"
+        }
+    ]
+}
 ```
 
-### Web Dashboard
+### Pattern Discovery Configuration
 
-The Streamlit dashboard provides interactive visualization:
-
-#### **Features**
-- **Real-time processing**: Live data loading and analysis
-- **Interactive charts**: Mismatch distribution and trends
-- **API monitoring**: Connection status and health checks
-- **Export capabilities**: Download reports and visualizations
-
-#### **Components**
-- **Data source selection**: Files, API, auto-detect, hybrid
-- **Visualization panels**: Charts, tables, and statistics
-- **Configuration panels**: Threshold and parameter settings
-- **Status monitoring**: System health and progress indicators
-
-### Service Integration
-
-The system can be integrated with external services:
-
-#### **Data Services**
-- **Database integration**: SQLite, PostgreSQL, MySQL
-- **Cloud storage**: AWS S3, Azure Blob, Google Cloud Storage
-- **Message queues**: Redis, RabbitMQ, Apache Kafka
-
-#### **Monitoring & Alerting**
-- **Health checks**: API endpoints and system status
-- **Performance metrics**: Processing time and throughput
-- **Error tracking**: Logging and alerting for issues
+```python
+# Configure pattern discovery parameters
+pattern_config = {
+    "pv_threshold": 0.1,
+    "delta_threshold": 0.05,
+    "temporal_window": 30,
+    "product_specific": True,
+    "historical_weight": 0.3
+}
+```
 
 ## Performance Characteristics
 
-### Scalability
-
-- **Linear scaling**: Performance scales linearly with data size
-- **Memory efficient**: In-memory processing with minimal overhead
-- **Parallel processing**: Potential for multi-threading large datasets
-- **Caching**: Model persistence and data caching
-
 ### Processing Capabilities
+- **Data Loading**: 1,000-10,000 trades/second (file-based)
+- **ML Training**: 10,000-100,000 trades/second (LightGBM)
+- **ML Prediction**: 50,000-500,000 trades/second (optimized)
+- **Report Generation**: 1,000-10,000 trades/second
+- **Dynamic Label Generation**: Real-time pattern discovery and rule application
 
-#### **Data Loading Performance:**
-- **File-based**: 1,000-10,000 trades/second (Excel files)
-- **API-based**: 100-1,000 trades/second (network dependent)
-- **Hybrid**: 500-5,000 trades/second (optimized merging)
-
-#### **ML Performance:**
-- **Training**: 10,000-100,000 trades/second (LightGBM efficiency)
-- **Prediction**: 50,000-500,000 trades/second (optimized inference)
-- **Model Size**: ~1MB (LightGBM model)
-
-#### **Report Generation:**
-- **Excel Export**: 1,000-10,000 trades/second
-- **Summary Statistics**: Real-time calculation
-- **Visualization**: Instant chart generation
-
-### Optimization
-
-- **Efficient merging**: Optimized pandas operations
-- **Lazy loading**: Load data only when needed
-- **Compression**: Excel file compression for storage
-- **Indexing**: Database indexing for fast queries
-
-### Resource Requirements
-
-- **CPU**: Minimal requirements for typical datasets
-- **Memory**: Scales with data size (typically <1GB for 10K trades)
-- **Storage**: Excel files + SQLite database
-- **Network**: HTTP requests for API integration
+### Scalability
+- **Memory**: ~1MB per 1,000 trades
+- **Storage**: Excel files + SQLite database + Dynamic label patterns
+- **Concurrent**: Single-threaded (parallelizable)
+- **Limits**: Up to 1M trades per file
 
 ### Real-world Performance
+- **Small (<1K trades)**: 1-5 seconds total
+- **Medium (1K-10K trades)**: 5-30 seconds total  
+- **Large (10K-100K trades)**: 30 seconds-5 minutes total
 
-#### **Small Datasets (< 1K trades):**
-- **Total Processing Time**: 1-5 seconds
-- **ML Training**: 0.1-1 second
-- **Prediction**: <0.1 second
-- **Memory Usage**: <100MB
+## Integration Points
 
-#### **Medium Datasets (1K-10K trades):**
-- **Total Processing Time**: 5-30 seconds
-- **ML Training**: 1-5 seconds
-- **Prediction**: 0.1-1 second
-- **Memory Usage**: 100MB-1GB
+### External Systems
+- **API Integration**: REST API for external data sources
+- **Database Integration**: SQLite for persistent storage
+- **File Systems**: Excel file processing
+- **Web Interfaces**: Streamlit dashboard
 
-#### **Large Datasets (10K-100K trades):**
-- **Total Processing Time**: 30 seconds-5 minutes
-- **ML Training**: 5-30 seconds
-- **Prediction**: 1-10 seconds
-- **Memory Usage**: 1GB-10GB
+### Internal Communication
+- **Agent Communication**: Structured data flows between agents
+- **Dynamic Label Updates**: Real-time label generation and updates
+- **Pattern Sharing**: Discovered patterns shared across components
+- **Configuration Management**: Centralized configuration for all components
 
-## Security Considerations
+## Security and Validation
 
-### Data Protection
+### Data Validation
+- **Input Validation**: Ensures data quality and completeness
+- **Business Rule Validation**: Validates business rule syntax and logic
+- **Pattern Validation**: Validates discovered patterns
+- **Output Validation**: Ensures output quality and consistency
 
-- **API key management**: Secure storage of authentication credentials
-- **Data encryption**: HTTPS for API communications
-- **Access control**: API key-based authentication
-- **Audit logging**: Track data access and modifications
+### Error Handling
+- **Graceful Degradation**: System continues operation with errors
+- **Error Logging**: Comprehensive error tracking and reporting
+- **Recovery Mechanisms**: Automatic recovery from common errors
+- **User Feedback**: Clear error messages and status indicators
 
-### Best Practices
+## Monitoring and Analytics
 
-- **Secure configuration**: Environment variables for sensitive data
-- **Input validation**: Validate all external data
-- **Error handling**: Graceful failure without data exposure
-- **Regular updates**: Keep dependencies updated
+### System Monitoring
+- **Performance Metrics**: Processing speed and resource usage
+- **Error Tracking**: Error rates and types
+- **Pattern Discovery**: New patterns and trends
+- **Label Generation**: Label diversity and frequency
+
+### Business Analytics
+- **Diagnosis Distribution**: Analysis of diagnosis patterns
+- **Mismatch Trends**: Trends in PV and Delta mismatches
+- **Rule Effectiveness**: Effectiveness of business rules
+- **ML Model Performance**: Model accuracy and performance
 
 ## Future Enhancements
 
-### Planned Improvements
+### Planned Features
+- **Advanced Pattern Recognition**: ML-based pattern discovery
+- **Real-time Streaming**: Live data processing capabilities
+- **Advanced Analytics**: Statistical analysis and trend detection
+- **Integration APIs**: REST APIs for external system integration
 
-1. **Real-time Processing**: Stream processing for live data
-2. **Advanced ML**: Deep learning and ensemble methods
-3. **Cloud Deployment**: Containerization and cloud services
-4. **Advanced Analytics**: Statistical modeling and forecasting
-5. **Mobile Support**: Mobile app for on-the-go monitoring
-
-### Technical Roadmap
-
-1. **Microservices**: Break down into smaller, focused services
-2. **Database Migration**: Move from SQLite to production database
-3. **API Versioning**: Versioned API endpoints
-4. **Performance Monitoring**: Advanced metrics and alerting
-5. **Automated Testing**: Comprehensive test suite
-
----
-
-**🏗️ Architecture designed for scalability, maintainability, and extensibility**
+### Technical Improvements
+- **Parallel Processing**: Multi-threading for large datasets
+- **Database Integration**: Move from Excel to database storage
+- **Caching**: Implement intelligent caching for repeated operations
+- **Optimization**: Algorithm optimization for better performance

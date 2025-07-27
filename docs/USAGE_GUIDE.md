@@ -31,7 +31,7 @@ data/
 #### **Option B: Manual File Upload**
 Alternatively, you can manually upload files through the Streamlit dashboard interface.
 
-#### **Option B: API-based Data**
+#### **Option C: API-based Data**
 Configure API endpoints in `api_config.json`:
 
 ```json
@@ -80,7 +80,197 @@ python pipeline.py --source files --data-dir /path/to/data
 
 - **Report**: `final_recon_report.xlsx`
 - **Model**: `models/lightgbm_diagnoser.txt`
+- **Dynamic Labels**: `config/diagnosis_labels.json`
 - **Console Output**: Summary statistics
+
+## 🎯 Dynamic Label Generation System
+
+### Overview
+
+The system now features a **Dynamic Label Generator** that creates diagnosis labels in real-time based on:
+
+1. **Business Rules**: Configurable rules from analyzer agents
+2. **Data Patterns**: Discovered patterns and anomalies
+3. **Domain Knowledge**: Industry standards and best practices
+4. **Historical Analysis**: Root cause patterns from previous analyses
+
+### Configuration
+
+#### **Business Rules Configuration**
+
+Create or modify business rules in your code:
+
+```python
+from crew.agents.dynamic_label_generator import DynamicLabelGenerator
+
+# Initialize the dynamic label generator
+label_generator = DynamicLabelGenerator()
+
+# Business rules are automatically loaded, but you can customize them:
+business_rules = {
+    "pv_rules": [
+        {
+            "condition": "PV_old is None",
+            "label": "New trade – no prior valuation",
+            "priority": 1,
+            "category": "trade_lifecycle"
+        },
+        {
+            "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+            "label": "Legacy LIBOR curve with outdated model – PV likely shifted",
+            "priority": 2,
+            "category": "curve_model"
+        },
+        {
+            "condition": "CSA_Type == 'Cleared' and PV_Mismatch == True",
+            "label": "CSA changed post-clearing – funding basis moved",
+            "priority": 2,
+            "category": "funding_csa"
+        },
+        {
+            "condition": "PV_Mismatch == False",
+            "label": "Within tolerance",
+            "priority": 0,
+            "category": "tolerance"
+        }
+    ],
+    "delta_rules": [
+        {
+            "condition": "ProductType == 'Option' and Delta_Mismatch == True",
+            "label": "Vol sensitivity likely – delta impact due to model curve shift",
+            "priority": 2,
+            "category": "volatility"
+        },
+        {
+            "condition": "Delta_Mismatch == False",
+            "label": "Within tolerance",
+            "priority": 0,
+            "category": "tolerance"
+        }
+    ]
+}
+```
+
+#### **Pattern Discovery Configuration**
+
+The system automatically discovers patterns, but you can configure the discovery process:
+
+```python
+# Pattern discovery is automatic, but you can influence it:
+patterns = label_generator.discover_patterns(df)
+
+# View discovered patterns
+print("Discovered PV patterns:", patterns.get('pv_patterns', []))
+print("Discovered Delta patterns:", patterns.get('delta_patterns', []))
+print("Discovered temporal patterns:", patterns.get('temporal_patterns', []))
+print("Discovered product patterns:", patterns.get('product_patterns', []))
+```
+
+#### **Domain Knowledge Categories**
+
+The system includes comprehensive domain knowledge categories:
+
+- **Trade Lifecycle**: New trades, dropped trades, amendments
+- **Curve/Model**: LIBOR transition, model updates, curve changes
+- **Funding/CSA**: Clearing changes, collateral updates, margin requirements
+- **Volatility**: Option sensitivity, delta impacts, model shifts
+- **Data Quality**: Missing data, validation issues, format problems
+- **Market Events**: Market disruptions, regulatory changes
+
+### Usage Examples
+
+#### **Basic Dynamic Label Generation**
+
+```python
+from crew.agents.dynamic_label_generator import DynamicLabelGenerator
+import pandas as pd
+
+# Initialize the generator
+label_generator = DynamicLabelGenerator()
+
+# Generate labels for your data
+df = pd.read_excel("data/merged_data.xlsx")
+labels = label_generator.generate_labels(df, include_discovered=True, include_historical=True)
+
+print("Generated labels:", labels)
+```
+
+#### **Custom Business Rules**
+
+```python
+from crew.agents.analyzer_agent import AnalyzerAgent
+from crew.agents.dynamic_label_generator import DynamicLabelGenerator
+
+# Initialize with custom label generator
+label_generator = DynamicLabelGenerator()
+analyzer = AnalyzerAgent(label_generator=label_generator)
+
+# Add custom business rule
+analyzer.add_business_rule(
+    rule_type="pv_rules",
+    condition="ProductType == 'Swap' and PV_Diff > 10000",
+    label="Large swap PV difference - model methodology change",
+    priority=3,
+    category="model_change"
+)
+
+# Apply analysis
+df = analyzer.apply(df)
+```
+
+#### **Pattern Discovery and Learning**
+
+```python
+# The system automatically discovers patterns
+patterns = label_generator.discover_patterns(df)
+
+# View pattern statistics
+stats = label_generator.get_label_statistics()
+print("Label frequency:", stats['label_frequency'])
+print("Pattern frequency:", stats['pattern_frequency'])
+
+# Get label categories
+categories = label_generator.get_label_categories()
+for category, labels in categories.items():
+    print(f"{category}: {labels}")
+```
+
+#### **Historical Learning**
+
+```python
+# The system learns from analysis results
+analyzer_output = {
+    'pv_diagnoses': ['New trade – no prior valuation', 'Legacy LIBOR curve'],
+    'delta_diagnoses': ['Vol sensitivity likely', 'Within tolerance']
+}
+
+# Update the label generator with analysis results
+label_generator.update_from_analysis(df, analyzer_output)
+
+# Save patterns for future use
+label_generator._save_patterns()
+```
+
+### Integration with ML Model
+
+The ML model now uses dynamically generated labels:
+
+```python
+from crew.agents.ml_tool import MLDiagnoserAgent
+
+# Initialize ML agent (automatically uses dynamic labels)
+ml_agent = MLDiagnoserAgent()
+
+# Train with dynamic labels
+training_result = ml_agent.train(df, label_col='PV_Diagnosis')
+
+# Make predictions with dynamic labels
+predictions = ml_agent.predict(df, label_col='PV_Diagnosis')
+
+# Get model information including dynamic label integration
+model_info = ml_agent.get_model_info()
+print("Dynamic labels used:", model_info['dynamic_labels'])
+```
 
 ## Detailed Usage
 
@@ -109,424 +299,355 @@ Required columns:
 Example:
 ```
 TradeID  PV_new   Delta_new
-T001     105200   0.43
+T001     104200   0.41
 T002     -97500   -0.97
-T003     50800    0.01
+T003     51000    0.01
 ```
 
 #### trade_metadata.xlsx
 Required columns:
 - `TradeID` (String): Unique trade identifier
-- `ProductType` (String): Financial product type
-- `FundingCurve` (String): Funding curve identifier
+- `ProductType` (String): Type of financial product
+- `FundingCurve` (String): Funding curve used
 - `CSA_Type` (String): Credit Support Annex type
 - `ModelVersion` (String): Model version identifier
 
 Example:
 ```
-TradeID  ProductType  FundingCurve  CSA_Type      ModelVersion
-T001     Swap         USD-LIBOR     Cleared_CSA   v2024.3
-T002     Option       SOFR          Bilateral     v2024.2
-T003     Swap         EUR-EURIBOR   Cleared_CSA   v2024.3
+TradeID  ProductType  FundingCurve  CSA_Type    ModelVersion
+T001     Swap         USD-LIBOR     Cleared     v2024.2
+T002     Option       USD-SOFR      Bilateral   v2024.3
+T003     Bond         EUR-EURIBOR   Cleared     v2024.1
 ```
 
 #### funding_model_reference.xlsx
 Required columns:
-- `TradeID` (String): Unique trade identifier
-- Additional funding-related fields (various types)
+- `FundingCurve` (String): Funding curve identifier
+- `ModelVersion` (String): Model version
+- `CurveDate` (Date): Curve date
+- `Rate` (Float): Reference rate
 
 Example:
 ```
-TradeID  FundingRate  CollateralType  MarginType
-T001     0.025        Cash            Initial
-T002     0.030        Securities      Variation
-T003     0.020        Cash            Initial
+FundingCurve  ModelVersion  CurveDate    Rate
+USD-LIBOR     v2024.2      2024-01-15   5.25
+USD-SOFR      v2024.3      2024-01-15   5.30
+EUR-EURIBOR   v2024.1      2024-01-15   4.50
 ```
 
-### Data Source Options
+### Output Data Structure
 
-The unified data loader supports four different source modes:
-
-#### **1. Files (`--source files`)**
-- Loads data from Excel files in the data directory
-- Fastest option for local development
-- Requires all files to be present
-
-#### **2. API (`--source api`)**
-- Fetches data from external API endpoints
-- Requires valid API configuration
-- Supports filtering by trade IDs and dates
-
-#### **3. Auto-detect (`--source auto` or default)**
-- Automatically chooses the best available source
-- Tries API first, falls back to files if API fails
-- Most user-friendly option
-
-#### **4. Hybrid (`--source hybrid`)**
-- Loads from both file and API sources
-- Merges data from multiple sources
-- Provides redundancy and data validation
-
-### Command Line Options
-
-```bash
-python pipeline.py [OPTIONS]
-
-Options:
-  --source TEXT           Data source: files, api, auto, hybrid [default: auto]
-  --data-dir TEXT         Directory containing Excel files [default: data/]
-  --api-config TEXT       Path to API configuration file
-  --trade-ids TEXT        Specific trade IDs to filter (space-separated)
-  --date TEXT            Specific date for API filtering (YYYY-MM-DD)
-  --help                 Show this help message
-```
-
-### API Configuration
-
-Create an API configuration file (e.g., `api_config.json`):
-
-```json
-{
-  "base_url": "https://api.example.com",
-  "api_key": "your_api_key_here",
-  "timeout": 30,
-  "endpoints": {
-    "old_pricing": "/api/v1/pricing/old",
-    "new_pricing": "/api/v1/pricing/new",
-    "trade_metadata": "/api/v1/trades/metadata",
-    "funding_reference": "/api/v1/funding/reference"
-  }
-}
-```
-
-### Web Dashboard
-
-Launch the interactive Streamlit dashboard:
-
-```bash
-# Using the wrapper script
-python run_dashboard.py
-
-# Or directly with streamlit
-streamlit run app.py
-```
-
-The dashboard provides:
-- **🚀 Auto-Load Functionality**: One-click loading of all 4 files from data/ directory
-- **📊 Visual Status Indicators**: Real-time loading status with success/error indicators
-- **✅ Ready Confirmation**: Clear indication when files are loaded and ready
-- **📈 Interactive Visualizations**: Charts, graphs, and analysis tools
-- **🔌 API Connection Monitoring**: Real-time API status and data quality
-- **💾 Export Capabilities**: Download reports and charts
-
-#### **Using Auto-Load Feature:**
-
-1. **Prepare Files**: Ensure all 4 required files are in the `data/` directory
-2. **Open Dashboard**: Navigate to http://localhost:8501
-3. **Select Data Source**: Choose "Files" as data source
-4. **Choose Auto-Load**: Select "Auto-load from data/" option
-5. **Monitor Status**: Watch real-time loading indicators
-6. **Confirm Ready**: Wait for "Ready for reconciliation analysis!" message
-7. **Run Analysis**: Click "Run Reconciliation Analysis"
-
-#### **Auto-Load Benefits:**
-- **Speed**: Eliminates manual file upload process
-- **Accuracy**: Ensures all required files are loaded
-- **Transparency**: Clear visual feedback on loading status
-- **Reliability**: Robust error handling and validation
-- **User-Friendly**: Intuitive interface for non-technical users
-
-### REST API Server
-
-Start the REST API server for external integrations:
-
-```bash
-# Start the server
-python api_server.py
-
-# Test the API
-python api_client.py
-```
-
-## Output Analysis
-
-### Excel Report Structure
-
-The `final_recon_report.xlsx` contains:
+The system generates a comprehensive Excel report with the following columns:
 
 #### **Original Data**
 - `TradeID`: Unique trade identifier
-- `PV_old`, `PV_new`: Present values from old/new models
-- `Delta_old`, `Delta_new`: Delta risk from old/new models
+- `PV_old`, `PV_new`: Present values (old/new)
+- `Delta_old`, `Delta_new`: Delta risk (old/new)
+- `ProductType`, `FundingCurve`, `CSA_Type`, `ModelVersion`: Trade metadata
 
-#### **Mismatch Analysis**
-- `PV_Diff`, `Delta_Diff`: Absolute differences
-- `PV_Mismatch`, `Delta_Mismatch`: Boolean flags for mismatches
-- `Any_Mismatch`: Overall mismatch indicator
+#### **Calculated Fields**
+- `PV_Diff`: Difference between old and new PV
+- `Delta_Diff`: Difference between old and new Delta
+- `PV_Mismatch`: Boolean flag for PV mismatches
+- `Delta_Mismatch`: Boolean flag for Delta mismatches
+- `Any_Mismatch`: Boolean flag for any mismatch
 
-#### **Diagnoses**
-- `PV_Diagnosis`, `Delta_Diagnosis`: Rule-based root cause analysis
-- `ML_Diagnosis`: Machine learning predictions
+#### **Dynamic Diagnosis Labels**
+- `PV_Diagnosis`: **Dynamically generated** PV diagnosis labels
+- `Delta_Diagnosis`: **Dynamically generated** Delta diagnosis labels
+- `ML_PV_Diagnosis`: ML predictions for PV diagnoses
+- `ML_Delta_Diagnosis`: ML predictions for Delta diagnoses
 
-### Business Rules
+### Example Output
 
-The system applies the following diagnostic rules:
-
-| Condition | Diagnosis |
-|-----------|-----------|
-| `PV_old` is None | "New trade – no prior valuation" |
-| `PV_new` is None | "Trade dropped from new model" |
-| Legacy LIBOR + outdated model | "Legacy LIBOR curve with outdated model – PV likely shifted" |
-| CSA changed post-clearing | "CSA changed post-clearing – funding basis moved" |
-| Option + Delta mismatch | "Vol sensitivity likely – delta impact due to model curve shift" |
-| Default | "Within tolerance" |
-
-#### **ML Diagnoses**
-The ML model learns patterns from rule-based diagnoses and may identify:
-- Complex interactions between features
-- Non-obvious patterns in the data
-- Edge cases not covered by business rules
-
-### Performance Monitoring
-
-#### **Key Metrics:**
-- **Processing Speed**: 1,000-10,000 trades/second (file-based)
-- **ML Training Speed**: 10,000-100,000 trades/second (LightGBM)
-- **ML Prediction Speed**: 50,000-500,000 trades/second
-- **Memory Usage**: ~1MB per 1,000 trades
-- **Report Generation**: 1,000-10,000 trades/second
-
-#### **Performance by Dataset Size:**
-- **Small (<1K trades)**: 1-5 seconds total processing
-- **Medium (1K-10K trades)**: 5-30 seconds total processing
-- **Large (10K-100K trades)**: 30 seconds-5 minutes total processing
-
-#### **Optimization Tips:**
-- **Batch Processing**: Process trades in batches of 1K-10K
-- **Memory Management**: Monitor RAM usage for large datasets
-- **Caching**: Use pre-trained models for faster inference
-- **Parallel Processing**: Consider multi-threading for large datasets
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Missing Dependencies
 ```
-ModuleNotFoundError: No module named 'lightgbm'
-```
-**Solution**: Install missing packages
-```bash
-pip install -r requirements.txt
+TradeID  PV_old   PV_new   PV_Diff  PV_Mismatch  PV_Diagnosis                    ML_PV_Diagnosis
+T001     104500   104200   -300     False        Within tolerance                 Within tolerance
+T002     -98000   -97500   500      False        Within tolerance                 Within tolerance
+T003     50500    51000    500      False        Within tolerance                 Within tolerance
+T004     None     100000   None     True         New trade – no prior valuation  New trade – no prior valuation
+T005     200000   180000   -20000   True         Legacy LIBOR curve with         Legacy LIBOR curve with
+                                                  outdated model – PV likely      outdated model – PV likely
+                                                  shifted                         shifted
 ```
 
-#### 2. File Not Found
-```
-FileNotFoundError: [Errno 2] No such file or directory: 'data/old_pricing.xlsx'
-```
-**Solution**: Ensure all required files are in the `data/` directory
+## 🚀 Advanced Features
 
-#### 3. API Connection Issues
-```
-ConnectionError: Failed to connect to API endpoint
-```
-**Solution**: 
-- Verify API configuration in `api_config.json`
-- Check network connectivity
-- Use `--source files` as fallback
+### **Dynamic Threshold Configuration**
 
-#### 4. Data Type Errors
-```
-TypeError: Cannot convert 'Swap' to float
-```
-**Solution**: Ensure categorical features are properly handled (already fixed in current version)
+Configure mismatch detection thresholds:
 
-#### 5. Memory Issues
-```
-MemoryError: Unable to allocate array
-```
-**Solution**: Process data in smaller chunks or increase system memory
+```python
+from crew.agents.recon_agent import ReconAgent
 
-#### 6. Model Loading Errors
+# Create recon agent with custom thresholds
+recon_agent = ReconAgent(
+    pv_tolerance=1000,      # PV mismatch threshold
+    delta_tolerance=0.05     # Delta mismatch threshold
+)
 ```
-FileNotFoundError: [Errno 2] No such file or directory: 'models/lightgbm_diagnoser.txt'
+
+### **Business Rule Management**
+
+Add, modify, and manage business rules dynamically:
+
+```python
+from crew.agents.analyzer_agent import AnalyzerAgent
+
+analyzer = AnalyzerAgent()
+
+# Add new business rule
+analyzer.add_business_rule(
+    rule_type="pv_rules",
+    condition="ProductType == 'CDS' and PV_Diff > 50000",
+    label="Large CDS PV difference - credit event impact",
+    priority=3,
+    category="credit_event"
+)
+
+# Get current business rules
+rules = analyzer.get_business_rules()
+print("Current PV rules:", rules['pv_rules'])
+
+# Get analysis statistics
+stats = analyzer.get_analysis_statistics(df)
+print("PV diagnosis distribution:", stats['pv_diagnosis_stats'])
 ```
-**Solution**: The model will be created automatically on first run
 
-### Debug Mode
+### **Pattern Discovery and Learning**
 
-Enable debug output by modifying `pipeline.py`:
+Monitor and analyze pattern discovery:
+
+```python
+from crew.agents.dynamic_label_generator import DynamicLabelGenerator
+
+label_generator = DynamicLabelGenerator()
+
+# Discover patterns in your data
+patterns = label_generator.discover_patterns(df)
+
+# Get pattern statistics
+stats = label_generator.get_label_statistics()
+print("Pattern discovery results:", stats)
+
+# Get label categories
+categories = label_generator.get_label_categories()
+for category, labels in categories.items():
+    print(f"{category}: {len(labels)} labels")
+```
+
+### **ML Model Integration**
+
+Work with the ML model that uses dynamic labels:
+
+```python
+from crew.agents.ml_tool import MLDiagnoserAgent
+
+ml_agent = MLDiagnoserAgent()
+
+# Train the model with dynamic labels
+training_result = ml_agent.train(df, label_col='PV_Diagnosis')
+print("Training accuracy:", training_result['accuracy'])
+
+# Make predictions
+predictions = ml_agent.predict(df, label_col='PV_Diagnosis')
+
+# Get model information
+model_info = ml_agent.get_model_info()
+print("Model features:", model_info['feature_names'])
+print("Dynamic labels used:", model_info['dynamic_labels'])
+
+# Get feature importance
+importance = ml_agent.get_feature_importance()
+print("Feature importance:", importance)
+```
+
+### **Configuration Management**
+
+Manage system configuration:
+
+```python
+# Business rules configuration
+business_rules_config = {
+    "pv_rules": [
+        {
+            "condition": "PV_old is None",
+            "label": "New trade – no prior valuation",
+            "priority": 1,
+            "category": "trade_lifecycle"
+        }
+    ],
+    "delta_rules": [
+        {
+            "condition": "ProductType == 'Option' and Delta_Mismatch == True",
+            "label": "Vol sensitivity likely – delta impact",
+            "priority": 2,
+            "category": "volatility"
+        }
+    ]
+}
+
+# Pattern discovery configuration
+pattern_config = {
+    "pv_threshold": 0.1,
+    "delta_threshold": 0.05,
+    "temporal_window": 30,
+    "product_specific": True,
+    "historical_weight": 0.3
+}
+```
+
+## 📊 Performance Optimization
+
+### **Large Dataset Processing**
+
+For large datasets, consider these optimizations:
+
+```python
+# Process data in chunks
+chunk_size = 10000
+for chunk in pd.read_excel("large_file.xlsx", chunksize=chunk_size):
+    # Process each chunk
+    result = analyzer.apply(chunk)
+    # Save results incrementally
+```
+
+### **Memory Management**
+
+```python
+# Clear memory after processing
+import gc
+
+# After processing large datasets
+gc.collect()
+
+# Use efficient data types
+df = df.astype({
+    'PV_old': 'float32',
+    'PV_new': 'float32',
+    'Delta_old': 'float32',
+    'Delta_new': 'float32'
+})
+```
+
+### **Parallel Processing**
+
+```python
+# For multiple files, process in parallel
+from concurrent.futures import ThreadPoolExecutor
+
+def process_file(filename):
+    # Process individual file
+    pass
+
+with ThreadPoolExecutor(max_workers=4) as executor:
+    results = list(executor.map(process_file, file_list))
+```
+
+## 🔧 Troubleshooting
+
+### **Common Issues**
+
+#### **Dynamic Label Generation Issues**
+
+```python
+# Check if label generator is working
+label_generator = DynamicLabelGenerator()
+labels = label_generator.generate_labels(df)
+print("Generated labels:", labels)
+
+# Check business rules
+rules = label_generator.business_rules
+print("Business rules:", rules)
+```
+
+#### **ML Model Issues**
+
+```python
+# Validate data before training
+validation_result = ml_agent.validate_data(df)
+print("Validation results:", validation_result)
+
+# Check model info
+model_info = ml_agent.get_model_info()
+print("Model status:", model_info)
+```
+
+#### **Business Rule Issues**
+
+```python
+# Test business rule evaluation
+analyzer = AnalyzerAgent()
+test_row = df.iloc[0]
+diagnosis = analyzer.pv_analyzer.analyze(test_row)
+print("Test diagnosis:", diagnosis)
+```
+
+### **Debug Mode**
+
+Enable debug logging:
 
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-# ... rest of the code
+# Run with debug output
+python pipeline.py --debug
 ```
 
-### Data Validation
-
-Add data validation to check input files:
+### **Performance Monitoring**
 
 ```python
-import os
+import time
 
-def validate_input_files(data_dir):
-    required_files = [
-        'old_pricing.xlsx',
-        'new_pricing.xlsx', 
-        'trade_metadata.xlsx',
-        'funding_model_reference.xlsx'
-    ]
-    
-    for file in required_files:
-        if not os.path.exists(f"{data_dir}/{file}"):
-            raise FileNotFoundError(f"Missing required file: {file}")
+start_time = time.time()
+# Run your analysis
+end_time = time.time()
+print(f"Processing time: {end_time - start_time:.2f} seconds")
 ```
 
-## Best Practices
+## 📈 Best Practices
 
-### Data Preparation
-1. **Clean Data**: Remove duplicates and handle missing values
-2. **Consistent Format**: Ensure all files use the same TradeID format
-3. **Data Validation**: Verify data types and ranges
-4. **Backup**: Keep backups of original data files
+### **Data Quality**
 
-### API Configuration
-1. **Secure Keys**: Store API keys securely, not in version control
-2. **Error Handling**: Implement proper fallback mechanisms
-3. **Rate Limiting**: Respect API rate limits
-4. **Monitoring**: Monitor API connection status
+1. **Validate Input Data**: Ensure all required columns are present
+2. **Handle Missing Values**: Use appropriate strategies for missing data
+3. **Check Data Types**: Ensure numerical columns are properly typed
+4. **Validate Business Rules**: Test business rules with sample data
 
-### Model Management
-1. **Version Control**: Track model versions and performance
-2. **Regular Retraining**: Retrain models with new data
-3. **Model Validation**: Validate model predictions against known cases
-4. **Performance Monitoring**: Track model accuracy over time
+### **Dynamic Label Generation**
 
-### Why LightGBM?
+1. **Start with Default Rules**: Use built-in business rules initially
+2. **Add Custom Rules Gradually**: Add custom rules based on domain knowledge
+3. **Monitor Pattern Discovery**: Review discovered patterns regularly
+4. **Validate Labels**: Ensure generated labels make business sense
 
-We chose **LightGBM** as our primary ML model for the following reasons:
+### **ML Model Management**
 
-#### **🚀 Performance Advantages:**
-- **Speed**: LightGBM is significantly faster than CatBoost and XGBoost for both training and prediction
-- **Memory Efficiency**: Uses histogram-based algorithm requiring less memory
-- **Scalability**: Handles large datasets (100M+ records) efficiently
+1. **Regular Retraining**: Retrain models with new data
+2. **Monitor Performance**: Track model accuracy and performance
+3. **Feature Engineering**: Add relevant features based on domain knowledge
+4. **Model Versioning**: Keep track of model versions and performance
 
-#### **📊 Technical Benefits:**
-- **Native Categorical Support**: Handles categorical features without preprocessing
-- **Gradient-based One-Side Sampling (GOSS)**: Reduces training time while maintaining accuracy
-- **Exclusive Feature Bundling (EFB)**: Reduces memory usage and speeds up training
-- **Leaf-wise Tree Growth**: More efficient than level-wise growth
+### **System Configuration**
 
-#### **🏢 Business Benefits:**
-- **Real-time Predictions**: Fast inference for live reconciliation workflows
-- **Resource Efficiency**: Lower computational requirements for production deployment
-- **Model Interpretability**: Better feature importance analysis for business insights
+1. **Threshold Tuning**: Adjust thresholds based on business requirements
+2. **Rule Priority**: Set appropriate priorities for business rules
+3. **Pattern Discovery**: Configure pattern discovery parameters
+4. **Historical Learning**: Monitor and adjust historical learning parameters
 
-#### **Comparison with Alternatives:**
+## 🚀 Future Enhancements
 
-| Model | Speed | Memory | Categorical Support | Scalability | Production Ready |
-|-------|-------|--------|-------------------|-------------|------------------|
-| **LightGBM** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| CatBoost | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| XGBoost | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Random Forest | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+### **Planned Features**
 
-#### **Specific Advantages for Reconciliation:**
-- **Financial Data Handling**: Excellent performance on tabular financial data
-- **Categorical Features**: Native support for product types, funding curves, CSA types
-- **Imbalanced Classes**: Handles diagnosis class imbalance effectively
-- **Feature Interactions**: Captures complex relationships in financial data
+1. **Advanced Pattern Recognition**: ML-based pattern discovery
+2. **Real-time Streaming**: Live data processing capabilities
+3. **Advanced Analytics**: Statistical analysis and trend detection
+4. **Integration APIs**: REST APIs for external system integration
 
-### System Maintenance
-1. **Regular Updates**: Keep dependencies updated
-2. **Log Monitoring**: Monitor system logs for issues
-3. **Performance Tuning**: Optimize for your specific use case
-4. **Backup Strategy**: Regular backups of models and data
+### **Performance Improvements**
 
-### Quality Assurance
-1. **Data Quality**: Ensure high-quality input data
-2. **Result Validation**: Verify output accuracy
-3. **Cross-validation**: Compare rule-based and ML results
-4. **Documentation**: Document any customizations or changes
-
-## Examples
-
-### Basic Example
-```bash
-# 1. Prepare data files
-cp your_old_pricing.xlsx data/old_pricing.xlsx
-cp your_new_pricing.xlsx data/new_pricing.xlsx
-cp your_metadata.xlsx data/trade_metadata.xlsx
-cp your_funding.xlsx data/funding_model_reference.xlsx
-
-# 2. Run pipeline with auto-detect
-python pipeline.py
-
-# 3. Check results
-ls -la final_recon_report.xlsx
-```
-
-### API Example
-```bash
-# 1. Create API configuration
-cat > api_config.json << EOF
-{
-  "base_url": "https://api.example.com",
-  "api_key": "your_key_here",
-  "endpoints": {
-    "old_pricing": "/api/v1/pricing/old",
-    "new_pricing": "/api/v1/pricing/new",
-    "trade_metadata": "/api/v1/trades/metadata",
-    "funding_reference": "/api/v1/funding/reference"
-  }
-}
-EOF
-
-# 2. Run with API source
-python pipeline.py --source api --api-config api_config.json
-
-# 3. Run with specific trade IDs
-python pipeline.py --source api --api-config api_config.json --trade-ids TRADE001 TRADE002
-```
-
-### Custom Threshold Example
-```python
-# Modify thresholds in recon_agent.py
-class ReconAgent:
-    def __init__(self, pv_tolerance=500, delta_tolerance=0.01):  # Stricter thresholds
-        self.pv_tolerance = pv_tolerance
-        self.delta_tolerance = delta_tolerance
-```
-
-### Custom Business Rule Example
-```python
-# Add custom rule in analyzer_agent.py
-def rule_based_diagnosis(self, row):
-    if row.get("ProductType") == "Exotic" and row.get("PV_Mismatch"):
-        return "Exotic product - complex valuation model change"
-    # ... existing rules
-```
-
-## Support
-
-### Getting Help
-1. **Check Documentation**: Review this guide and architecture docs
-2. **Review Logs**: Check console output for error messages
-3. **Validate Data**: Ensure input files meet requirements
-4. **Test with Sample Data**: Use provided sample data to verify setup
-
-### Reporting Issues
-When reporting issues, include:
-- **Error Message**: Complete error text
-- **Input Data**: Sample of problematic data (anonymized)
-- **System Info**: Python version, OS, package versions
-- **Steps to Reproduce**: Detailed steps to recreate the issue
-
-### Feature Requests
-For new features or enhancements:
-- **Use Case**: Describe the specific use case
-- **Expected Behavior**: What should the system do
-- **Current Behavior**: What it currently does
-- **Impact**: Why this feature is important 
+1. **Parallel Processing**: Multi-threading for large datasets
+2. **Database Integration**: Move from Excel to database storage
+3. **Caching**: Implement intelligent caching for repeated operations
+4. **Optimization**: Algorithm optimization for better performance 

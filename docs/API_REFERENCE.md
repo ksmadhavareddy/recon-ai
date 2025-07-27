@@ -2,34 +2,42 @@
 
 ## Overview
 
-This document provides detailed API reference for all agents and components in the AI-Powered Reconciliation System.
+This document provides detailed API reference for all agents and components in the AI-Powered Reconciliation System, including the **dynamic label generation system**.
 
 ## Core Components
 
 ### ReconciliationCrew
 
-The main orchestrator class that coordinates all agents.
+The main orchestrator class that coordinates all agents, now including dynamic label generation.
 
 #### Constructor
 ```python
-ReconciliationCrew(data_dir="data/")
+ReconciliationCrew(data_dir="data/", api_config=None, pv_tolerance=1000, delta_tolerance=0.05)
 ```
 
 **Parameters:**
 - `data_dir` (str): Directory containing input Excel files
+- `api_config` (dict): API configuration for external data sources
+- `pv_tolerance` (float): PV mismatch threshold (default: 1000)
+- `delta_tolerance` (float): Delta mismatch threshold (default: 0.05)
 
 #### Methods
 
-##### run()
-Executes the complete reconciliation workflow.
+##### run(source="auto", trade_ids=None, date=None)
+Executes the complete reconciliation workflow with dynamic label generation.
+
+**Parameters:**
+- `source` (str): Data source ("files", "api", "auto", "hybrid")
+- `trade_ids` (list): Specific trade IDs to filter (for API)
+- `date` (str): Specific date to filter (for API)
 
 **Returns:**
-- `pandas.DataFrame`: Complete reconciliation results
+- `pandas.DataFrame`: Complete reconciliation results with dynamic labels
 
 **Example:**
 ```python
-crew = ReconciliationCrew(data_dir="data")
-df = crew.run()
+crew = ReconciliationCrew(data_dir="data", pv_tolerance=500, delta_tolerance=0.03)
+df = crew.run(source="auto")
 ```
 
 ## Agent Reference
@@ -101,7 +109,7 @@ df = loader.load_data()  # Uses auto-detect
 
 ### ReconAgent
 
-Identifies PV and Delta mismatches using configurable thresholds.
+Detects PV and Delta mismatches using configurable thresholds.
 
 #### Constructor
 ```python
@@ -109,85 +117,242 @@ ReconAgent(pv_tolerance=1000, delta_tolerance=0.05)
 ```
 
 **Parameters:**
-- `pv_tolerance` (float): Threshold for PV mismatch detection
-- `delta_tolerance` (float): Threshold for Delta mismatch detection
+- `pv_tolerance` (float): PV mismatch threshold
+- `delta_tolerance` (float): Delta mismatch threshold
 
 #### Methods
 
-##### add_diff_flags(df)
-Adds mismatch flags to the DataFrame.
+##### apply(df)
+Applies mismatch detection to the input DataFrame.
 
 **Parameters:**
 - `df` (pandas.DataFrame): Input DataFrame with PV and Delta columns
 
 **Returns:**
-- `pandas.DataFrame`: DataFrame with added mismatch flags
+- `pandas.DataFrame`: DataFrame with mismatch flags added
 
 **Added Columns:**
-- `PV_Diff`: Difference between PV_new and PV_old
-- `Delta_Diff`: Difference between Delta_new and Delta_old
+- `PV_Diff`: Difference between PV_old and PV_new
+- `Delta_Diff`: Difference between Delta_old and Delta_new
 - `PV_Mismatch`: Boolean flag for PV mismatches
 - `Delta_Mismatch`: Boolean flag for Delta mismatches
 - `Any_Mismatch`: Boolean flag for any mismatch
 
 **Example:**
 ```python
-recon = ReconAgent(pv_tolerance=500, delta_tolerance=0.01)
-df = recon.add_diff_flags(df)
+recon_agent = ReconAgent(pv_tolerance=500, delta_tolerance=0.03)
+df_with_flags = recon_agent.apply(df)
 ```
 
-### AnalyzerAgent
+### AnalyzerAgent (Enhanced)
 
-Provides rule-based root cause analysis for mismatches.
+Provides **dynamic rule-based diagnosis** using configurable business rules.
 
 #### Constructor
 ```python
-AnalyzerAgent()
+AnalyzerAgent(label_generator=None)
 ```
+
+**Parameters:**
+- `label_generator` (DynamicLabelGenerator): Optional custom label generator
 
 #### Methods
 
-##### rule_based_diagnosis(row)
-Applies business rules to diagnose root causes.
+##### apply(df)
+Applies dynamic rule-based analysis to the input DataFrame.
 
 **Parameters:**
-- `row` (pandas.Series): Single row of data
+- `df` (pandas.DataFrame): Input DataFrame with mismatch flags
 
 **Returns:**
-- `str`: Diagnosis string
+- `pandas.DataFrame`: DataFrame with dynamic diagnoses added
 
-**Business Rules:**
-1. **New trade**: `PV_old` is None → "New trade – no prior valuation"
-2. **Dropped trade**: `PV_new` is None → "Trade dropped from new model"
-3. **Legacy LIBOR**: `FundingCurve == "USD-LIBOR"` and `ModelVersion != "v2024.3"` → "Legacy LIBOR curve with outdated model – PV likely shifted"
-4. **CSA change**: `CSA_Type == "Cleared_CSA"` and `PV_Mismatch` → "CSA changed post-clearing – funding basis moved"
-5. **Vol sensitivity**: `ProductType == "Option"` and `Delta_Mismatch` → "Vol sensitivity likely – delta impact due to model curve shift"
-6. **Default**: → "Within tolerance"
+**Added Columns:**
+- `PV_Diagnosis`: **Dynamically generated** PV diagnosis labels
+- `Delta_Diagnosis`: **Dynamically generated** Delta diagnosis labels
+
+**Process:**
+1. Applies business rules dynamically
+2. Evaluates conditions safely
+3. Updates label generator with results
+4. Generates dynamic diagnoses
 
 **Example:**
 ```python
 analyzer = AnalyzerAgent()
-diagnosis = analyzer.rule_based_diagnosis(row)
+df_with_diagnoses = analyzer.apply(df)
 ```
 
-##### apply(df)
-Applies rule-based diagnosis to entire DataFrame.
+##### get_business_rules()
+Returns current business rules configuration.
+
+**Returns:**
+- `dict`: Current business rules for PV and Delta analysis
+
+**Example:**
+```python
+rules = analyzer.get_business_rules()
+print("PV rules:", rules['pv_rules'])
+```
+
+##### add_business_rule(rule_type, condition, label, priority=1, category="custom")
+Adds a new business rule to the analyzer.
+
+**Parameters:**
+- `rule_type` (str): Rule type ("pv_rules" or "delta_rules")
+- `condition` (str): String condition to evaluate
+- `label` (str): Diagnosis label to assign
+- `priority` (int): Rule priority (higher = more important)
+- `category` (str): Rule category for organization
+
+**Example:**
+```python
+analyzer.add_business_rule(
+    rule_type="pv_rules",
+    condition="ProductType == 'CDS' and PV_Diff > 50000",
+    label="Large CDS PV difference - credit event impact",
+    priority=3,
+    category="credit_event"
+)
+```
+
+##### get_analysis_statistics(df)
+Returns analysis statistics and diagnosis distribution.
+
+**Parameters:**
+- `df` (pandas.DataFrame): DataFrame with diagnoses
+
+**Returns:**
+- `dict`: Analysis statistics including diagnosis distributions
+
+**Example:**
+```python
+stats = analyzer.get_analysis_statistics(df)
+print("PV diagnosis distribution:", stats['pv_diagnosis_stats'])
+```
+
+### DynamicLabelGenerator (New)
+
+Generates diagnosis labels in real-time based on business rules, patterns, and domain knowledge.
+
+#### Constructor
+```python
+DynamicLabelGenerator(config_path=None)
+```
+
+**Parameters:**
+- `config_path` (str): Path to configuration file (default: "config/diagnosis_labels.json")
+
+#### Methods
+
+##### generate_labels(df, include_discovered=True, include_historical=True)
+Generates dynamic diagnosis labels based on current data and patterns.
+
+**Parameters:**
+- `df` (pandas.DataFrame): Input DataFrame
+- `include_discovered` (bool): Include discovered patterns (default: True)
+- `include_historical` (bool): Include historical patterns (default: True)
+
+**Returns:**
+- `list`: List of dynamic diagnosis labels
+
+**Process:**
+1. Applies business rules
+2. Discovers patterns in data
+3. Integrates domain knowledge
+4. Incorporates historical learning
+
+**Example:**
+```python
+label_generator = DynamicLabelGenerator()
+labels = label_generator.generate_labels(df)
+print("Generated labels:", labels)
+```
+
+##### discover_patterns(df)
+Discovers patterns in the input DataFrame.
 
 **Parameters:**
 - `df` (pandas.DataFrame): Input DataFrame
 
 **Returns:**
-- `pandas.DataFrame`: DataFrame with added `Diagnosis` column
+- `dict`: Dictionary containing discovered patterns
+
+**Pattern Types:**
+- `pv_patterns`: PV-related patterns
+- `delta_patterns`: Delta-related patterns
+- `temporal_patterns`: Time-based patterns
+- `product_patterns`: Product-specific patterns
 
 **Example:**
 ```python
-analyzer = AnalyzerAgent()
-df = analyzer.apply(df)
+patterns = label_generator.discover_patterns(df)
+print("PV patterns:", patterns.get('pv_patterns', []))
 ```
 
-### MLDiagnoserAgent
+##### update_from_analysis(df, analyzer_output)
+Updates the label generator with analysis results.
 
-Provides machine learning-based diagnosis predictions using LightGBM.
+**Parameters:**
+- `df` (pandas.DataFrame): Input DataFrame
+- `analyzer_output` (dict): Analysis results from analyzer agent
+
+**Process:**
+1. Extracts unique diagnoses from analysis
+2. Updates historical patterns
+3. Saves patterns to configuration file
+
+**Example:**
+```python
+analyzer_output = {
+    'pv_diagnoses': ['New trade – no prior valuation', 'Legacy LIBOR curve'],
+    'delta_diagnoses': ['Vol sensitivity likely', 'Within tolerance']
+}
+label_generator.update_from_analysis(df, analyzer_output)
+```
+
+##### get_label_categories()
+Returns labels organized by their categories.
+
+**Returns:**
+- `dict`: Labels organized by category
+
+**Categories:**
+- `trade_lifecycle`: Trade lifecycle-related labels
+- `curve_model`: Curve and model-related labels
+- `funding_csa`: Funding and CSA-related labels
+- `volatility`: Volatility-related labels
+- `data_quality`: Data quality-related labels
+- `market_events`: Market event-related labels
+
+**Example:**
+```python
+categories = label_generator.get_label_categories()
+for category, labels in categories.items():
+    print(f"{category}: {labels}")
+```
+
+##### get_label_statistics()
+Returns statistics about label usage and patterns.
+
+**Returns:**
+- `dict`: Label and pattern statistics
+
+**Statistics:**
+- `label_frequency`: Frequency of each label
+- `pattern_frequency`: Frequency of each pattern
+- `historical_patterns`: Historical pattern data
+- `last_update`: Last update timestamp
+
+**Example:**
+```python
+stats = label_generator.get_label_statistics()
+print("Label frequency:", stats['label_frequency'])
+```
+
+### MLDiagnoserAgent (Enhanced)
+
+ML-powered diagnosis predictions using **dynamically generated labels**.
 
 #### Constructor
 ```python
@@ -195,95 +360,163 @@ MLDiagnoserAgent(model_path="models/lightgbm_diagnoser.txt")
 ```
 
 **Parameters:**
-- `model_path` (str): Path to save/load the trained model
+- `model_path` (str): Path to saved model file
 
 #### Methods
 
-##### prepare_features_and_labels(df)
-Prepares features and labels for ML training/prediction.
+##### prepare_features_and_labels(df, label_col='PV_Diagnosis')
+Prepares features and labels for ML training/prediction with dynamic labels.
+
+**Parameters:**
+- `df` (pandas.DataFrame): Input DataFrame
+- `label_col` (str): Column name containing diagnosis labels
+
+**Returns:**
+- `tuple`: (features, encoded_labels)
+
+**Features:**
+- `PV_old`, `PV_new`: Present values
+- `Delta_old`, `Delta_new`: Delta risk measures
+- `ProductType`, `FundingCurve`, `CSA_Type`, `ModelVersion`: Categorical features
+
+**Process:**
+1. Validates required features
+2. Handles categorical features
+3. Generates dynamic labels
+4. Encodes labels for ML
+
+**Example:**
+```python
+ml_agent = MLDiagnoserAgent()
+X, y = ml_agent.prepare_features_and_labels(df, label_col='PV_Diagnosis')
+```
+
+##### train(df, label_col='PV_Diagnosis', validation_df=None, **kwargs)
+Trains the LightGBM model using dynamically generated labels.
+
+**Parameters:**
+- `df` (pandas.DataFrame): Training DataFrame
+- `label_col` (str): Column name containing diagnosis labels
+- `validation_df` (pandas.DataFrame): Optional validation DataFrame
+- `**kwargs`: Additional LightGBM parameters
+
+**Returns:**
+- `dict`: Training metrics and history
+
+**Process:**
+1. Prepares features and dynamic labels
+2. Trains LightGBM model
+3. Updates label generator with analysis results
+4. Saves model and metadata
+
+**Example:**
+```python
+training_result = ml_agent.train(df, label_col='PV_Diagnosis')
+print("Training accuracy:", training_result['accuracy'])
+```
+
+##### predict(df, label_col='PV_Diagnosis')
+Makes predictions using the trained model with dynamic labels.
+
+**Parameters:**
+- `df` (pandas.DataFrame): Input DataFrame
+- `label_col` (str): Column name for predictions
+
+**Returns:**
+- `numpy.ndarray`: Predicted diagnosis labels
+
+**Process:**
+1. Loads trained model
+2. Prepares features
+3. Makes predictions
+4. Decodes labels
+
+**Example:**
+```python
+predictions = ml_agent.predict(df, label_col='PV_Diagnosis')
+```
+
+##### evaluate_model(test_df, true_labels)
+Evaluates model performance.
+
+**Parameters:**
+- `test_df` (pandas.DataFrame): Test DataFrame
+- `true_labels` (pandas.Series): True labels
+
+**Returns:**
+- `dict`: Evaluation metrics
+
+**Metrics:**
+- `accuracy`: Overall accuracy
+- `classification_report`: Detailed classification report
+- `confusion_matrix`: Confusion matrix
+- `feature_importance`: Feature importance scores
+
+**Example:**
+```python
+metrics = ml_agent.evaluate_model(test_df, true_labels)
+print("Accuracy:", metrics['accuracy'])
+```
+
+##### get_feature_importance(importance_type='gain')
+Returns feature importance scores.
+
+**Parameters:**
+- `importance_type` (str): Importance type ('gain', 'split', 'cover')
+
+**Returns:**
+- `pandas.DataFrame`: Feature importance scores
+
+**Example:**
+```python
+importance = ml_agent.get_feature_importance()
+print("Top features:", importance.head())
+```
+
+##### get_model_info()
+Returns comprehensive model information.
+
+**Returns:**
+- `dict`: Model information including dynamic label integration
+
+**Information:**
+- `model_path`: Path to saved model
+- `feature_names`: List of feature names
+- `categorical_features`: List of categorical features
+- `dynamic_labels`: Dynamic labels used in training
+- `training_history`: Training history
+- `last_training`: Last training timestamp
+
+**Example:**
+```python
+model_info = ml_agent.get_model_info()
+print("Dynamic labels used:", model_info['dynamic_labels'])
+```
+
+##### validate_data(df)
+Validates input data quality.
 
 **Parameters:**
 - `df` (pandas.DataFrame): Input DataFrame
 
 **Returns:**
-- `tuple`: (X, y) where X is feature matrix and y is encoded labels
+- `dict`: Validation results
 
-**Features Used:**
-- Numerical: `PV_old`, `PV_new`, `Delta_old`, `Delta_new`
-- Categorical: `ProductType`, `FundingCurve`, `CSA_Type`, `ModelVersion`
-
-**Example:**
-```python
-ml_agent = MLDiagnoserAgent()
-X, y = ml_agent.prepare_features_and_labels(df)
-```
-
-##### train(df)
-Trains the LightGBM model using rule-based diagnoses as labels.
-
-**Parameters:**
-- `df` (pandas.DataFrame): Training data with `Diagnosis` column
-
-**Process:**
-1. Prepares features and labels
-2. Initializes LightGBMClassifier
-3. Specifies categorical features
-4. Fits the model
-5. Saves model and label encoder
+**Checks:**
+- Required features present
+- Data types correct
+- Missing values
+- Value ranges
 
 **Example:**
 ```python
-ml_agent = MLDiagnoserAgent()
-ml_agent.train(df)
-```
-
-##### predict(df)
-Generates ML-based diagnoses for input data.
-
-**Parameters:**
-- `df` (pandas.DataFrame): Input DataFrame
-
-**Returns:**
-- `numpy.ndarray`: Array of predicted diagnosis strings
-
-**Process:**
-1. Prepares features (same as training)
-2. Loads trained model if not already loaded
-3. Generates predictions
-4. Decodes labels back to strings
-
-**Example:**
-```python
-ml_agent = MLDiagnoserAgent()
-predictions = ml_agent.predict(df)
-```
-
-##### save_model()
-Saves the trained model and label encoder.
-
-**Saved Components:**
-- Trained LightGBM model
-- LabelEncoder for target variable
-
-**Example:**
-```python
-ml_agent = MLDiagnoserAgent()
-ml_agent.train(df)
-ml_agent.save_model()
-```
-
-##### load_model()
-Loads a previously trained model and label encoder.
-
-**Example:**
-```python
-ml_agent = MLDiagnoserAgent()
-ml_agent.load_model()  # Loads existing model
+validation = ml_agent.validate_data(df)
+print("Validation results:", validation)
 ```
 
 ### NarratorAgent
 
-Generates reports and summaries of reconciliation results.
+Generates comprehensive reports and summaries.
 
 #### Constructor
 ```python
@@ -292,345 +525,309 @@ NarratorAgent()
 
 #### Methods
 
-##### summarize_report(df)
-Generates summary statistics for the reconciliation results.
+##### generate_report(df, output_path="final_recon_report.xlsx")
+Generates comprehensive Excel report with dynamic labels.
 
 **Parameters:**
-- `df` (pandas.DataFrame): Complete reconciliation DataFrame
+- `df` (pandas.DataFrame): Complete reconciliation results
+- `output_path` (str): Output file path
 
 **Returns:**
-- `dict`: Summary statistics
+- `str`: Path to generated report
 
-**Summary Metrics:**
-- `Total Trades`: Number of trades processed
-- `PV Mismatches`: Number of PV mismatches
-- `Delta Mismatches`: Number of Delta mismatches
-- `Flagged Trades`: Total trades with any mismatch
-
-**Example:**
-```python
-narrator = NarratorAgent()
-summary = narrator.summarize_report(df)
-```
-
-##### save_report(df, output_path="final_recon_report.xlsx")
-Saves the complete reconciliation results to Excel.
-
-**Parameters:**
-- `df` (pandas.DataFrame): Complete reconciliation DataFrame
-- `output_path` (str): Path for output Excel file
-
-**Output Columns:**
-- `TradeID`: Unique trade identifier
-- `PV_old`, `PV_new`, `PV_Diff`: Present value data
-- `Delta_old`, `Delta_new`, `Delta_Diff`: Delta risk data
-- `ProductType`, `FundingCurve`, `CSA_Type`, `ModelVersion`: Trade characteristics
-- `PV_Mismatch`, `Delta_Mismatch`: Mismatch flags
-- `Diagnosis`: Rule-based diagnosis
-- `ML_Diagnosis`: ML-based diagnosis
+**Report Contents:**
+- Original data with all columns
+- Mismatch flags and differences
+- **Dynamic diagnosis labels**
+- ML predictions
+- Summary statistics
 
 **Example:**
 ```python
 narrator = NarratorAgent()
-narrator.save_report(df, "my_report.xlsx")
+report_path = narrator.generate_report(df)
+print(f"Report saved to: {report_path}")
 ```
 
-## Data Structures
+## Business Rules Configuration
 
-### Input Data Schema
-
-#### old_pricing.xlsx
-| Column | Type | Description | Required |
-|--------|------|-------------|----------|
-| TradeID | String | Unique trade identifier | Yes |
-| PV_old | Float | Present value (old model) | Yes |
-| Delta_old | Float | Delta risk (old model) | Yes |
-
-#### new_pricing.xlsx
-| Column | Type | Description | Required |
-|--------|------|-------------|----------|
-| TradeID | String | Unique trade identifier | Yes |
-| PV_new | Float | Present value (new model) | Yes |
-| Delta_new | Float | Delta risk (new model) | Yes |
-
-#### trade_metadata.xlsx
-| Column | Type | Description | Required |
-|--------|------|-------------|----------|
-| TradeID | String | Unique trade identifier | Yes |
-| ProductType | String | Financial product type | Yes |
-| FundingCurve | String | Funding curve identifier | Yes |
-| CSA_Type | String | Credit Support Annex type | Yes |
-| ModelVersion | String | Model version identifier | Yes |
-
-#### funding_model_reference.xlsx
-| Column | Type | Description | Required |
-|--------|------|-------------|----------|
-| TradeID | String | Unique trade identifier | Yes |
-| Additional fields | Various | Funding-related parameters | No |
-
-### Output Data Schema
-
-#### final_recon_report.xlsx
-| Column | Type | Description |
-|--------|------|-------------|
-| TradeID | String | Unique trade identifier |
-| PV_old, PV_new | Float | Present values |
-| PV_Diff | Float | PV difference |
-| Delta_old, Delta_new | Float | Delta risk measures |
-| Delta_Diff | Float | Delta difference |
-| ProductType | String | Financial product type |
-| FundingCurve | String | Funding curve identifier |
-| CSA_Type | String | Credit Support Annex type |
-| ModelVersion | String | Model version identifier |
-| PV_Mismatch | Boolean | PV mismatch flag |
-| Delta_Mismatch | Boolean | Delta mismatch flag |
-| Diagnosis | String | Rule-based diagnosis |
-| ML_Diagnosis | String | ML-based diagnosis |
-
-## Configuration Options
-
-### ReconAgent Configuration
+### PV Rules
 
 ```python
-# Adjust mismatch thresholds
-recon_agent = ReconAgent(
-    pv_tolerance=1000,      # PV mismatch threshold
-    delta_tolerance=0.05     # Delta mismatch threshold
-)
+pv_rules = [
+    {
+        "condition": "PV_old is None",
+        "label": "New trade – no prior valuation",
+        "priority": 1,
+        "category": "trade_lifecycle"
+    },
+    {
+        "condition": "PV_new is None", 
+        "label": "Trade dropped from new model",
+        "priority": 1,
+        "category": "trade_lifecycle"
+    },
+    {
+        "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+        "label": "Legacy LIBOR curve with outdated model – PV likely shifted",
+        "priority": 2,
+        "category": "curve_model"
+    },
+    {
+        "condition": "CSA_Type == 'Cleared' and PV_Mismatch == True",
+        "label": "CSA changed post-clearing – funding basis moved",
+        "priority": 2,
+        "category": "funding_csa"
+    },
+    {
+        "condition": "PV_Mismatch == False",
+        "label": "Within tolerance",
+        "priority": 0,
+        "category": "tolerance"
+    }
+]
 ```
 
-### MLDiagnoserAgent Configuration
+### Delta Rules
 
 ```python
-# Change model path
-ml_agent = MLDiagnoserAgent(
-    model_path="custom/path/model.pkl"
-)
+delta_rules = [
+    {
+        "condition": "ProductType == 'Option' and Delta_Mismatch == True",
+        "label": "Vol sensitivity likely – delta impact due to model curve shift",
+        "priority": 2,
+        "category": "volatility"
+    },
+    {
+        "condition": "Delta_Mismatch == False",
+        "label": "Within tolerance",
+        "priority": 0,
+        "category": "tolerance"
+    }
+]
 ```
 
-### NarratorAgent Configuration
+## Domain Knowledge Categories
+
+### Trade Lifecycle
+- New trade – no prior valuation
+- Trade dropped from new model
+- Trade amended with new terms
+- Trade matured or expired
+
+### Curve/Model
+- Legacy LIBOR curve with outdated model
+- SOFR transition impact – curve basis changed
+- Model version update – methodology changed
+- Curve interpolation changed – end points affected
+
+### Funding/CSA
+- CSA changed post-clearing – funding basis moved
+- Collateral threshold changed – funding cost shifted
+- New clearing house – margin requirements different
+- Bilateral to cleared transition – funding curve changed
+
+### Volatility
+- Vol sensitivity likely – delta impact due to model curve shift
+- Option pricing model update – volatility surface changed
+- Market volatility spike – delta hedging impact
+- Volatility smile adjustment – skew changes
+
+### Data Quality
+- Missing pricing data – incomplete valuation
+- Data format mismatch – parsing errors
+- Validation failures – business rule violations
+- Timestamp inconsistencies – temporal misalignment
+
+### Market Events
+- Market disruption – liquidity impact
+- Regulatory change – compliance requirements
+- Central bank action – rate environment shift
+- Credit event – counterparty risk change
+
+## Configuration Management
+
+### Dynamic Label Configuration
 
 ```python
-# Custom report path
-narrator.save_report(df, "custom/report.xlsx")
+# Initialize with custom configuration
+label_generator = DynamicLabelGenerator("config/custom_labels.json")
+
+# Business rules are automatically loaded
+business_rules = label_generator.business_rules
+
+# Domain knowledge is automatically loaded
+domain_knowledge = label_generator.domain_knowledge
+```
+
+### Pattern Discovery Configuration
+
+```python
+# Pattern discovery is automatic, but you can influence it
+patterns = label_generator.discover_patterns(df)
+
+# Configure pattern discovery parameters
+pattern_config = {
+    "pv_threshold": 0.1,
+    "delta_threshold": 0.05,
+    "temporal_window": 30,
+    "product_specific": True,
+    "historical_weight": 0.3
+}
 ```
 
 ## Error Handling
 
-### Common Exceptions
+### Common Errors
 
-#### FileNotFoundError
-**Cause**: Missing input files
-**Solution**: Ensure all required files are in the data directory
+#### Dynamic Label Generation Errors
 
 ```python
-# Check if files exist
-import os
-if not os.path.exists("data/old_pricing.xlsx"):
-    raise FileNotFoundError("Missing old_pricing.xlsx")
+# Check if label generator is working
+try:
+    labels = label_generator.generate_labels(df)
+    print("Generated labels:", labels)
+except Exception as e:
+    print(f"Label generation error: {e}")
 ```
 
-#### ValueError
-**Cause**: Invalid data types or missing required columns
-**Solution**: Validate input data structure
+#### Business Rule Evaluation Errors
 
 ```python
-# Validate required columns
-required_cols = ['TradeID', 'PV_old', 'Delta_old']
-missing_cols = [col for col in required_cols if col not in df.columns]
-if missing_cols:
-    raise ValueError(f"Missing columns: {missing_cols}")
+# Test business rule evaluation
+try:
+    test_row = df.iloc[0]
+    diagnosis = analyzer.pv_analyzer.analyze(test_row)
+    print("Test diagnosis:", diagnosis)
+except Exception as e:
+    print(f"Business rule evaluation error: {e}")
 ```
 
-#### MemoryError
-**Cause**: Insufficient memory for large datasets
-**Solution**: Process data in chunks or increase system memory
+#### ML Model Errors
 
 ```python
-# Process in chunks
-chunk_size = 1000
-for chunk in pd.read_excel(file, chunksize=chunk_size):
-    process_chunk(chunk)
-```
-
-## Performance Considerations
-
-### Memory Usage
-- **Peak Memory**: ~2x data size for merged DataFrame
-- **Model Size**: ~1MB for LightGBM model
-- **Optimization**: Process large datasets in chunks
-
-### Performance Metrics
-
-#### Model Performance
-- **Training Time**: <1 second for typical datasets
-- **Prediction Time**: <0.1 second per trade
-- **Model Size**: ~1MB for LightGBM model
-- **Accuracy**: Depends on data quality and feature relevance
-
-#### System Performance
-- **Data Loading**: 1,000-10,000 trades/second (file-based)
-- **ML Training**: 10,000-100,000 trades/second (LightGBM)
-- **ML Prediction**: 50,000-500,000 trades/second
-- **Report Generation**: 1,000-10,000 trades/second
-- **Memory Usage**: ~1MB per 1,000 trades
-
-#### Performance by Dataset Size
-- **Small (<1K trades)**: 1-5 seconds total processing
-- **Medium (1K-10K trades)**: 5-30 seconds total processing
-- **Large (10K-100K trades)**: 30 seconds-5 minutes total processing
-
-### Why LightGBM?
-
-We chose **LightGBM** as our primary ML model for the following reasons:
-
-#### **🚀 Performance Advantages:**
-- **Speed**: LightGBM is significantly faster than CatBoost and XGBoost for both training and prediction
-- **Memory Efficiency**: Uses histogram-based algorithm requiring less memory
-- **Scalability**: Handles large datasets (100M+ records) efficiently
-
-#### **📊 Technical Benefits:**
-- **Native Categorical Support**: Handles categorical features without preprocessing
-- **Gradient-based One-Side Sampling (GOSS)**: Reduces training time while maintaining accuracy
-- **Exclusive Feature Bundling (EFB)**: Reduces memory usage and speeds up training
-- **Leaf-wise Tree Growth**: More efficient than level-wise growth
-
-#### **🏢 Business Benefits:**
-- **Real-time Predictions**: Fast inference for live reconciliation workflows
-- **Resource Efficiency**: Lower computational requirements for production deployment
-- **Model Interpretability**: Better feature importance analysis for business insights
-
-#### **Comparison with Alternatives:**
-
-| Model | Speed | Memory | Categorical Support | Scalability | Production Ready |
-|-------|-------|--------|-------------------|-------------|------------------|
-| **LightGBM** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| CatBoost | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| XGBoost | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Random Forest | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
-
-#### **Specific Advantages for Reconciliation:**
-- **Financial Data Handling**: Excellent performance on tabular financial data
-- **Categorical Features**: Native support for product types, funding curves, CSA types
-- **Imbalanced Classes**: Handles diagnosis class imbalance effectively
-- **Feature Interactions**: Captures complex relationships in financial data
-
-### Scalability
-- **Linear Scaling**: Performance scales linearly with data size
-- **Parallel Processing**: Can be extended for multi-threading
-- **Batch Processing**: Suitable for large datasets
-
-## Best Practices
-
-### Data Validation
-```python
-def validate_data(df):
-    # Check required columns
-    required_cols = ['TradeID', 'PV_old', 'PV_new']
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing columns: {missing_cols}")
-    
-    # Check data types
-    if not df['TradeID'].dtype == 'object':
-        raise ValueError("TradeID must be string type")
-    
-    # Check for missing values
-    if df[['PV_old', 'PV_new']].isnull().any().any():
-        print("Warning: Missing values detected")
-```
-
-### Model Management
-```python
-def manage_model(ml_agent, df, retrain=False):
-    if retrain or ml_agent.model is None:
-        print("Training new model...")
-        ml_agent.train(df)
+# Validate data before training
+try:
+    validation = ml_agent.validate_data(df)
+    if validation['is_valid']:
+        training_result = ml_agent.train(df)
     else:
-        print("Using existing model...")
-        ml_agent.load_model()
-    
-    return ml_agent.predict(df)
+        print("Data validation failed:", validation['errors'])
+except Exception as e:
+    print(f"ML model error: {e}")
 ```
 
-### Error Recovery
+## Performance Optimization
+
+### Large Dataset Processing
+
 ```python
-def safe_pipeline(data_dir):
-    try:
-        crew = ReconciliationCrew(data_dir)
-        df = crew.run()
-        return df
-    except FileNotFoundError as e:
-        print(f"Data file error: {e}")
-        return None
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
+# Process data in chunks
+chunk_size = 10000
+for chunk in pd.read_excel("large_file.xlsx", chunksize=chunk_size):
+    # Process each chunk
+    result = analyzer.apply(chunk)
+    # Save results incrementally
+```
+
+### Memory Management
+
+```python
+# Clear memory after processing
+import gc
+
+# After processing large datasets
+gc.collect()
+
+# Use efficient data types
+df = df.astype({
+    'PV_old': 'float32',
+    'PV_new': 'float32',
+    'Delta_old': 'float32',
+    'Delta_new': 'float32'
+})
+```
+
+### Parallel Processing
+
+```python
+# For multiple files, process in parallel
+from concurrent.futures import ThreadPoolExecutor
+
+def process_file(filename):
+    # Process individual file
+    pass
+
+with ThreadPoolExecutor(max_workers=4) as executor:
+    results = list(executor.map(process_file, file_list))
 ```
 
 ## Integration Examples
 
-### Custom Pipeline
+### Complete Workflow
+
 ```python
 from crew.crew_builder import ReconciliationCrew
+
+# Initialize crew with dynamic label generation
+crew = ReconciliationCrew(
+    data_dir="data/",
+    pv_tolerance=1000,
+    delta_tolerance=0.05
+)
+
+# Run complete workflow
+df = crew.run(source="auto")
+
+# Access individual agents
+loader = crew.data_loader
+recon = crew.recon_agent
+analyzer = crew.analyzer_agent
+ml_agent = crew.ml_agent
+narrator = crew.narrator_agent
+
+# Generate report
+report_path = narrator.generate_report(df)
+```
+
+### Custom Business Rules
+
+```python
+from crew.agents.analyzer_agent import AnalyzerAgent
+from crew.agents.dynamic_label_generator import DynamicLabelGenerator
+
+# Initialize with custom label generator
+label_generator = DynamicLabelGenerator()
+analyzer = AnalyzerAgent(label_generator=label_generator)
+
+# Add custom business rule
+analyzer.add_business_rule(
+    rule_type="pv_rules",
+    condition="ProductType == 'CDS' and PV_Diff > 50000",
+    label="Large CDS PV difference - credit event impact",
+    priority=3,
+    category="credit_event"
+)
+
+# Apply analysis
+df = analyzer.apply(df)
+```
+
+### ML Model with Dynamic Labels
+
+```python
 from crew.agents.ml_tool import MLDiagnoserAgent
 
-# Custom pipeline with ML focus
-def custom_ml_pipeline(data_dir):
-    # Load and process data
-    crew = ReconciliationCrew(data_dir)
-    df = crew.data_loader.load_all_data()
-    df = crew.recon_agent.add_diff_flags(df)
-    df = crew.analyzer_agent.apply(df)
-    
-    # Focus on ML analysis
-    ml_agent = MLDiagnoserAgent()
-    if ml_agent.model is None:
-        ml_agent.train(df)
-    
-    df["ML_Diagnosis"] = ml_agent.predict(df)
-    
-    # Compare rule-based vs ML
-    comparison = df[df["Diagnosis"] != df["ML_Diagnosis"]]
-    print(f"Disagreements: {len(comparison)}")
-    
-    return df
-```
+# Initialize ML agent (automatically uses dynamic labels)
+ml_agent = MLDiagnoserAgent()
 
-### Batch Processing
-```python
-import os
-from crew.crew_builder import ReconciliationCrew
+# Train with dynamic labels
+training_result = ml_agent.train(df, label_col='PV_Diagnosis')
 
-def batch_process(data_dirs):
-    results = {}
-    for data_dir in data_dirs:
-        if os.path.exists(data_dir):
-            try:
-                crew = ReconciliationCrew(data_dir)
-                df = crew.run()
-                results[data_dir] = df
-            except Exception as e:
-                print(f"Error processing {data_dir}: {e}")
-    return results
-```
+# Make predictions with dynamic labels
+predictions = ml_agent.predict(df, label_col='PV_Diagnosis')
 
-### Custom Reporting
-```python
-from crew.agents.narrator_agent import NarratorAgent
-
-def custom_report(df, output_path):
-    narrator = NarratorAgent()
-    
-    # Generate summary
-    summary = narrator.summarize_report(df)
-    
-    # Custom analysis
-    ml_accuracy = (df["Diagnosis"] == df["ML_Diagnosis"]).mean()
-    print(f"ML vs Rule-based agreement: {ml_accuracy:.2%}")
-    
-    # Save report
-    narrator.save_report(df, output_path)
-    
-    return summary
+# Get model information including dynamic label integration
+model_info = ml_agent.get_model_info()
+print("Dynamic labels used:", model_info['dynamic_labels'])
 ``` 

@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This system implements an intelligent reconciliation workflow that combines rule-based business logic with machine learning to identify and diagnose pricing mismatches between old and new financial models. The system uses a crew-based architecture with specialized AI agents working together to provide comprehensive analysis.
+This system implements an intelligent reconciliation workflow that combines **dynamic rule-based business logic** with machine learning to identify and diagnose pricing mismatches between old and new financial models. The system uses a crew-based architecture with specialized AI agents working together to provide comprehensive analysis, featuring **real-time dynamic label generation** for adaptive diagnosis scenarios.
 
 ## 🏗️ Architecture
 
@@ -19,11 +19,24 @@ This system implements an intelligent reconciliation workflow that combines rule
 │         │                │                │                   │
 │         ▼                ▼                ▼                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │ Load & Merge│  │ Flag        │  │ Rule-based  │          │
-│  │ Excel Data  │  │ Mismatches  │  │ Diagnosis   │          │
-│  └─────────────┘  └─────────────┘  └─────────────┘          │
-│         │                │                │                   │
+│  │ Load & Merge│  │ Flag        │  │ Dynamic     │          │
+│  │ Excel Data  │  │ Mismatches  │  │ Rule-based  │          │
+│  └─────────────┘  └─────────────┘  │ Diagnosis   │          │
+│         │                │          └─────────────┘          │
 │         └────────────────┼────────────────┘                   │
+│                          │                                    │
+│                          ▼                                    │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              Dynamic Label Generator                   │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐            │   │
+│  │  │ Business Rules  │  │ Pattern         │            │   │
+│  │  │ Engine          │  │ Discovery       │            │   │
+│  │  └─────────────────┘  └─────────────────┘            │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐            │   │
+│  │  │ Domain          │  │ Historical      │            │   │
+│  │  │ Knowledge       │  │ Analysis        │            │   │
+│  │  └─────────────────┘  └─────────────────┘            │   │
+│  └─────────────────────────────────────────────────────────┘   │
 │                          │                                    │
 │                          ▼                                    │
 │  ┌─────────────────────────────────────────────────────────┐   │
@@ -31,6 +44,8 @@ This system implements an intelligent reconciliation workflow that combines rule
 │  │  ┌─────────────────┐  ┌─────────────────┐            │   │
 │  │  │ Train Model     │  │ Predict         │            │   │
 │  │  │ (LightGBM)      │  │ Diagnoses       │            │   │
+│  │  │ with Dynamic    │  │ with Dynamic    │            │   │
+│  │  │ Labels          │  │ Labels          │            │   │
 │  │  └─────────────────┘  └─────────────────┘            │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                          │                                    │
@@ -56,8 +71,10 @@ This system implements an intelligent reconciliation workflow that combines rule
 │ new_pricing │───▶│ 2. Merge    │───▶│ Statistics  │
 │ metadata    │    │ 3. Flag     │    │ Excel File  │
 │ funding     │    │ 4. Analyze  │    │ ML Model    │
-└─────────────┘    │ 5. Predict  │    └─────────────┘
-                   │ 6. Report   │
+└─────────────┘    │ 5. Generate │    │ Dynamic     │
+                   │    Labels   │    │ Labels      │
+                   │ 6. Predict  │    └─────────────┘
+                   │ 7. Report   │
                    └─────────────┘
 ```
 
@@ -69,15 +86,61 @@ This system implements an intelligent reconciliation workflow that combines rule
 |-------|------|-------|--------|--------------|
 | **UnifiedDataLoaderAgent** | Data ingestion and merging | Files, APIs, Auto-detect, Hybrid | Merged DataFrame | Multi-source data fusion with auto-load functionality |
 | **ReconAgent** | Mismatch detection | Merged data | Flagged mismatches | Configurable thresholds |
-| **AnalyzerAgent** | Rule-based diagnosis | Flagged data | Business diagnoses | Domain-specific rules |
-| **MLDiagnoserAgent** | ML prediction | Training data | ML diagnoses | LightGBM model |
+| **AnalyzerAgent** | **Dynamic rule-based diagnosis** | Flagged data | **Dynamic business diagnoses** | **Dynamic business rules, safe condition evaluation** |
+| **DynamicLabelGenerator** | **Real-time label generation** | Analysis data | **Dynamic diagnosis labels** | **Pattern discovery, business rules, domain knowledge** |
+| **MLDiagnoserAgent** | ML prediction with dynamic labels | Training data | ML diagnoses | **LightGBM model with dynamic label integration** |
 | **NarratorAgent** | Report generation | All results | Excel report | Summary statistics |
 
-### ML Model Architecture
+### Dynamic Label Generation Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ML Diagnoser Agent                      │
+│                Dynamic Label Generator                     │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐                │
+│  │ Business Rules  │  │ Pattern         │                │
+│  │ Engine          │  │ Discovery       │                │
+│  │                 │  │                 │                │
+│  │ • PV Rules      │  │ • PV Patterns   │                │
+│  │ • Delta Rules   │  │ • Delta Patterns│                │
+│  │ • Priority      │  │ • Temporal      │                │
+│  │ • Categories    │  │ • Product       │                │
+│  └─────────────────┘  └─────────────────┘                │
+│           │                      │                        │
+│           └──────────┬───────────┘                        │
+│                      ▼                                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Label Generation                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐        │   │
+│  │  │ Domain          │  │ Historical      │        │   │
+│  │  │ Knowledge       │  │ Analysis        │        │   │
+│  │  │                 │  │                 │        │   │
+│  │  │ • Trade         │  │ • Pattern       │        │   │
+│  │  │   Lifecycle     │  │   Frequency     │        │   │
+│  │  │ • Curve/Model   │  │ • Label         │        │   │
+│  │  │ • Funding/CSA   │  │   Statistics    │        │   │
+│  │  │ • Volatility    │  │ • Trend         │        │   │
+│  │  │ • Data Quality  │  │   Analysis      │        │   │
+│  │  └─────────────────┘  └─────────────────┘        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                      │                                    │
+│                      ▼                                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Dynamic Labels                        │   │
+│  │  • Real-time generation                           │   │
+│  │  • Business rule application                      │   │
+│  │  • Pattern-based discovery                       │   │
+│  │  • Historical learning                           │   │
+│  │  • Domain knowledge integration                  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### ML Model Architecture with Dynamic Labels
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                ML Diagnoser Agent                         │
 ├─────────────────────────────────────────────────────────────┤
 │  Features:                                                 │
 │  • PV_old, PV_new, Delta_old, Delta_new                  │
@@ -89,410 +152,129 @@ This system implements an intelligent reconciliation workflow that combines rule
 │  │                 │  │                 │                │
 │  │ 1. Feature      │  │ 1. Load Model   │                │
 │  │    Engineering  │  │ 2. Prepare      │                │
-│  │ 2. Label        │  │    Features     │                │
-│  │    Encoding     │  │ 3. Predict      │                │
-│  │ 3. Train        │  │    Diagnoses    │                │
-│  │    LightGBM     │  │ 4. Decode       │                │
-│  │ 4. Save Model   │  │    Results      │                │
-│  └─────────────────┘  └─────────────────┘                │
+│  │ 2. Dynamic      │  │    Features     │                │
+│  │    Label        │  │ 3. Predict      │                │
+│  │    Generation   │  │    Diagnoses    │                │
+│  │ 3. Label        │  │ 4. Decode       │                │
+│  │    Encoding     │  │    Results      │                │
+│  │ 4. Train        │  │ 5. Update       │                │
+│  │    LightGBM     │  │    Labels       │                │
+│  │ 5. Save Model   │  └─────────────────┘                │
+│  └─────────────────┘                                      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🚀 Quick Start
+### Business Rules Categories
 
-### Prerequisites
+The dynamic label generation system supports comprehensive business rule categories:
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-```
+#### **Trade Lifecycle**
+- New trade – no prior valuation
+- Trade dropped from new model
+- Trade amended with new terms
+- Trade matured or expired
 
-### Data Structure
+#### **Curve/Model**
+- Legacy LIBOR curve with outdated model
+- SOFR transition impact – curve basis changed
+- Model version update – methodology changed
+- Curve interpolation changed – end points affected
 
-Place your input files in the `data/` directory:
+#### **Funding/CSA**
+- CSA changed post-clearing – funding basis moved
+- Collateral threshold changed – funding cost shifted
+- New clearing house – margin requirements different
+- Bilateral to cleared transition – funding curve changed
 
-```
-data/
-├── old_pricing.xlsx      # Previous pricing data
-├── new_pricing.xlsx      # Current pricing data  
-├── trade_metadata.xlsx   # Trade characteristics
-└── funding_model_reference.xlsx  # Funding information
-```
+#### **Volatility**
+- Vol sensitivity likely – delta impact due to model curve shift
+- Option pricing model update – volatility surface changed
+- Market volatility spike – delta hedging impact
+- Volatility smile adjustment – skew changes
 
-### Running the Pipeline
+#### **Data Quality**
+- Missing pricing data – incomplete valuation
+- Data format mismatch – parsing errors
+- Validation failures – business rule violations
+- Timestamp inconsistencies – temporal misalignment
 
-```bash
-python pipeline.py
-```
+#### **Market Events**
+- Market disruption – liquidity impact
+- Regulatory change – compliance requirements
+- Central bank action – rate environment shift
+- Credit event – counterparty risk change
 
-### Expected Output
+## 🔄 Dynamic Label Generation Process
 
-```
-🚀 Starting Agent-Based Reconciliation Workflow...
-🔄 Step 1: Loading data...
-📏 Step 2: Computing PV/Delta mismatches...
-🧠 Step 3: Diagnosing root causes (rule-based)...
-🤖 Step 4: Training ML model and predicting diagnoses...
-✅ ML model trained and saved.
-📊 Reconciliation Summary:
-Total Trades: 5
-PV Mismatches: 2
-Delta Mismatches: 2
-Flagged Trades: 2
-✅ Report saved to: final_recon_report.xlsx
-🎉 Workflow complete. Check your reconciliation report!
-```
-
-## 📊 Output Files
-
-### Generated Reports
-
-1. **`final_recon_report.xlsx`** - Complete reconciliation report with:
-   - Original pricing data
-   - Mismatch flags
-   - Rule-based diagnoses
-   - ML-based diagnoses
-   - Comparison analysis
-
-2. **`models/lightgbm_diagnoser.txt`** - Trained ML model for future predictions
-
-### Report Columns
-
-| Column | Description |
-|--------|-------------|
-| `TradeID` | Unique trade identifier |
-| `PV_old`, `PV_new` | Present value (old/new) |
-| `Delta_old`, `Delta_new` | Delta risk (old/new) |
-| `PV_Diff`, `Delta_Diff` | Differences between old/new |
-| `PV_Mismatch`, `Delta_Mismatch` | Boolean flags for mismatches |
-| `Diagnosis` | Rule-based root cause analysis |
-| `ML_Diagnosis` | Machine learning predictions |
-
-## 🔧 Configuration
-
-### Thresholds
-
+### 1. **Business Rules Application**
 ```python
-# In ReconAgent
-pv_tolerance = 1000      # PV mismatch threshold
-delta_tolerance = 0.05   # Delta mismatch threshold
+# Example business rule
+{
+    "condition": "FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'",
+    "label": "Legacy LIBOR curve with outdated model – PV likely shifted",
+    "priority": 2,
+    "category": "curve_model"
+}
 ```
 
-### ML Model Settings
-
-```python
-# In MLDiagnoserAgent
-model_path = "models/lightgbm_diagnoser.txt"
-cat_features = ['ProductType', 'FundingCurve', 'CSA_Type', 'ModelVersion']
-```
-
-## 🧠 Machine Learning Details
-
-### Feature Engineering
-
-**Numerical Features:**
-- `PV_old`, `PV_new` - Present values
-- `Delta_old`, `Delta_new` - Delta risk measures
-
-**Categorical Features:**
-- `ProductType` - Financial product type
-- `FundingCurve` - Funding curve used
-- `CSA_Type` - Credit Support Annex type
-- `ModelVersion` - Model version identifier
-
-### Model Training
-
-1. **Label Source**: Rule-based diagnoses from `AnalyzerAgent`
-2. **Algorithm**: LightGBM (gradient boosting)
-3. **Categorical Handling**: Native LightGBM categorical features
-4. **Validation**: Uses all available data for training
-
-### Prediction Process
-
-1. Load trained model
-2. Prepare features (same as training)
-3. Generate predictions
-4. Decode labels back to human-readable diagnoses
-
-### Why LightGBM?
-
-We chose **LightGBM** as our primary ML model for the following reasons:
-
-#### **🚀 Performance Advantages:**
-- **Speed**: LightGBM is significantly faster than CatBoost and XGBoost for both training and prediction
-- **Memory Efficiency**: Uses histogram-based algorithm requiring less memory
-- **Scalability**: Handles large datasets (100M+ records) efficiently
-
-#### **📊 Technical Benefits:**
-- **Native Categorical Support**: Handles categorical features without preprocessing
-- **Gradient-based One-Side Sampling (GOSS)**: Reduces training time while maintaining accuracy
-- **Exclusive Feature Bundling (EFB)**: Reduces memory usage and speeds up training
-- **Leaf-wise Tree Growth**: More efficient than level-wise growth
-
-#### **🏢 Business Benefits:**
-- **Real-time Predictions**: Fast inference for live reconciliation workflows
-- **Resource Efficiency**: Lower computational requirements for production deployment
-- **Model Interpretability**: Better feature importance analysis for business insights
-
-#### **Comparison with Alternatives:**
-
-| Model | Speed | Memory | Categorical Support | Scalability | Production Ready |
-|-------|-------|--------|-------------------|-------------|------------------|
-| **LightGBM** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| CatBoost | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| XGBoost | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Random Forest | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
-
-#### **Specific Advantages for Reconciliation:**
-- **Financial Data Handling**: Excellent performance on tabular financial data
-- **Categorical Features**: Native support for product types, funding curves, CSA types
-- **Imbalanced Classes**: Handles diagnosis class imbalance effectively
-- **Feature Interactions**: Captures complex relationships in financial data
-
-## 🚀 Auto-Load Functionality
-
-### Overview
-The system now includes an **auto-load functionality** that automatically loads all required input files from the `data/` directory, significantly streamlining the user experience.
-
-### Features
-
-#### **One-Click Setup**
-- Automatically loads all 4 required files from the `data/` directory
-- No manual file upload required
-- Instant readiness for reconciliation analysis
-
-#### **Required Files**
-The auto-load feature expects these files in the `data/` directory:
-- `old_pricing.xlsx` - Previous pricing data
-- `new_pricing.xlsx` - Current pricing data  
-- `trade_metadata.xlsx` - Trade characteristics
-- `funding_model_reference.xlsx` - Funding information
-
-#### **Visual Status Indicators**
-- **✅ Success**: Green indicator for successfully loaded files
-- **❌ Error**: Red indicator for failed file loads
-- **📊 File Size**: Displays file sizes for transparency
-- **🔄 Progress**: Real-time loading status updates
-
-#### **Error Handling**
-- Graceful handling of missing files
-- Clear error messages for corrupted files
-- Fallback to manual upload if auto-load fails
-- Detailed status reporting for troubleshooting
-
-#### **Ready Confirmation**
-- Clear "Ready for reconciliation analysis!" message
-- Visual confirmation when all files are loaded
-- Automatic transition to analysis phase
-
-### Usage in Streamlit Dashboard
-
-1. **Open Dashboard**: Navigate to http://localhost:8501
-2. **Select Data Source**: Choose "Files" as data source
-3. **Choose Loading Method**: Select "Auto-load from data/" option
-4. **Watch Loading**: Monitor real-time status indicators
-5. **Confirm Ready**: Wait for "Ready for reconciliation analysis!" message
-6. **Run Analysis**: Click "Run Reconciliation Analysis"
-
-### Implementation Details
-
-The auto-load functionality is implemented in the Streamlit dashboard (`app.py`) with the following components:
-
-```python
-def auto_load_data_files(data_dir="data"):
-    """Auto-load all required files from data directory"""
-    # Implementation details...
-    
-def display_file_status(file_status):
-    """Display loading status with visual indicators"""
-    # Implementation details...
-```
-
-### Benefits
-
-- **🚀 Speed**: Eliminates manual file upload process
-- **🎯 Accuracy**: Ensures all required files are loaded
-- **👁️ Transparency**: Clear visual feedback on loading status
-- **🛡️ Reliability**: Robust error handling and validation
-- **📱 User-Friendly**: Intuitive interface for non-technical users
-
-## 🔍 Business Rules
-
-### Rule-based Diagnoses
-
-| Condition | Diagnosis |
-|-----------|-----------|
-| `PV_old` is None | "New trade – no prior valuation" |
-| `PV_new` is None | "Trade dropped from new model" |
-| Legacy LIBOR + outdated model | "Legacy LIBOR curve with outdated model – PV likely shifted" |
-| CSA changed post-clearing | "CSA changed post-clearing – funding basis moved" |
-| Option + Delta mismatch | "Vol sensitivity likely – delta impact due to model curve shift" |
-| Default | "Within tolerance" |
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-recon-ai/
-├── crew/
-│   ├── agents/
-│   │   ├── unified_data_loader.py  # Unified data loading (files + APIs)
-│   │   ├── recon_agent.py          # Mismatch detection
-│   │   ├── analyzer_agent.py       # Rule-based analysis
-│   │   ├── ml_tool.py             # ML predictions
-│   │   └── narrator_agent.py       # Report generation
-│   └── crew_builder.py            # Pipeline orchestration
-├── data/                          # Input data files
-├── models/                        # Trained ML models
-├── docs/                          # Documentation
-├── pipeline.py                   # Main execution script
-├── requirements.txt              # Dependencies
-└── README.md                    # Project overview
-```
-
-### Adding New Agents
-
-1. Create agent class in `crew/agents/`
-2. Implement required methods
-3. Import and integrate in `crew_builder.py`
-4. Update pipeline workflow
-
-### Extending ML Capabilities
-
-1. **Feature Engineering**: Add new features in `prepare_features_and_labels()`
-2. **Model Selection**: Change `LightGBMClassifier` to other algorithms
-3. **Hyperparameter Tuning**: Add grid search or Bayesian optimization
-4. **Ensemble Methods**: Combine multiple models for better predictions
-
-## 📈 Performance Metrics
-
-### Current System Performance
-
-- **Processing Speed**: ~5 trades/second
-- **Accuracy**: Rule-based + ML comparison
-- **Scalability**: Linear with data size
-- **Memory Usage**: Minimal (in-memory processing)
-
-### ML Model Performance
-
-- **Training Time**: <1 second for typical datasets
-- **Prediction Time**: <0.1 second per trade
-- **Model Size**: ~1MB (LightGBM model)
-- **Accuracy**: Depends on data quality and feature relevance
-
-## 🔮 Future Enhancements
-
-### Planned Features
-
-1. **Real-time Processing**: Stream processing for live data
-2. **Advanced ML**: Deep learning models for complex patterns
-3. **Interactive UI**: Streamlit dashboard for visualization
-4. **API Integration**: REST API for external systems
-5. **Alert System**: Automated notifications for critical mismatches
-
-### Technical Improvements
-
-1. **Database Integration**: Move from Excel to database storage
-2. **Parallel Processing**: Multi-threading for large datasets
-3. **Model Versioning**: Track model performance over time
-4. **A/B Testing**: Compare different model approaches
-
-## 🤝 Contributing
-
-### Development Workflow
-
-1. Fork the repository
-2. Create feature branch
-3. Implement changes
-4. Add tests
-5. Submit pull request
-
-### Code Standards
-
-- Follow PEP 8 for Python code
-- Add docstrings to all functions
-- Include type hints
-- Write unit tests for new features
-
-## 📞 Support
-
-For questions or issues:
-
-1. Check the documentation
-2. Review existing issues
-3. Create new issue with detailed description
-4. Include error logs and data samples
-
----
-
-**Built with ❤️ using CrewAI architecture and LightGBM ML** 
-
-## Performance Characteristics
-
-### Processing Capabilities
-
-- **Data Loading**: 
-  - **File-based**: 1,000-10,000 trades/second (Excel files)
-  - **API-based**: 100-1,000 trades/second (network dependent)
-  - **Hybrid**: 500-5,000 trades/second (optimized merging)
-- **ML Model Training**: 10,000-100,000 trades/second (LightGBM efficiency)
-- **ML Prediction**: 50,000-500,000 trades/second (optimized inference)
-- **Report Generation**: 1,000-10,000 trades/second (pandas operations)
-
-### Scalability
-
-- **Memory Usage**: ~1MB per 1,000 trades
-- **Storage**: Excel files + SQLite database
-- **Concurrent Processing**: Single-threaded (can be parallelized)
-- **Data Size Limits**: 
-  - **Excel**: Up to 1M rows per file
-  - **API**: Configurable batch sizes
-  - **Memory**: Limited by available RAM
-
-### Performance Optimization
-
-#### **Current Optimizations:**
-- **LightGBM**: Fast gradient boosting for ML
-- **Pandas**: Efficient data manipulation
-- **Categorical Features**: Native LightGBM support
-- **Model Persistence**: Pre-trained models for inference
-
-#### **Bottlenecks:**
-- **Single-threaded processing**: No parallelization
-- **Excel I/O**: File reading can be slow for large datasets
-- **API Network calls**: Dependent on network latency
-- **Memory constraints**: All data loaded into memory
-
-#### **Potential Improvements:**
-- **Parallel Processing**: Multi-threading for data loading
-- **Chunked Processing**: Process data in batches
-- **Database Integration**: Replace Excel with SQL database
-- **Caching**: Cache frequently accessed data
-- **Streaming**: Process data in real-time streams
-
-### Real-world Performance
-
-#### **Small Datasets (< 1K trades):**
-- **Total Processing Time**: 1-5 seconds
-- **ML Training**: 0.1-1 second
-- **Prediction**: <0.1 second
-- **Memory Usage**: <100MB
-
-#### **Medium Datasets (1K-10K trades):**
-- **Total Processing Time**: 5-30 seconds
-- **ML Training**: 1-5 seconds
-- **Prediction**: 0.1-1 second
-- **Memory Usage**: 100MB-1GB
-
-#### **Large Datasets (10K-100K trades):**
-- **Total Processing Time**: 30 seconds-5 minutes
-- **ML Training**: 5-30 seconds
-- **Prediction**: 1-10 seconds
-- **Memory Usage**: 1GB-10GB
-
-#### **Production Considerations:**
-- **Batch Processing**: Process trades in batches of 1K-10K
-- **Incremental Training**: Retrain models periodically
-- **Resource Monitoring**: Track memory and CPU usage
-- **Error Handling**: Graceful degradation for large datasets 
+### 2. **Pattern Discovery**
+- **PV Patterns**: Analyzes PV differences and trends
+- **Delta Patterns**: Identifies delta sensitivity patterns
+- **Temporal Patterns**: Time-based analysis and seasonality
+- **Product Patterns**: Product-specific diagnosis patterns
+
+### 3. **Domain Knowledge Integration**
+- **Industry Standards**: Best practices and regulatory requirements
+- **Market Knowledge**: Current market conditions and trends
+- **Historical Context**: Previous analysis patterns and outcomes
+
+### 4. **Historical Learning**
+- **Pattern Frequency**: Tracks how often patterns occur
+- **Label Statistics**: Maintains label usage statistics
+- **Trend Analysis**: Identifies emerging patterns and trends
+
+## 🎯 Key Features
+
+### **Dynamic Label Generation**
+- **Real-time Creation**: Labels generated based on current data and business rules
+- **Pattern Discovery**: Automatically identifies new diagnosis patterns
+- **Business Rule Application**: Applies configurable rules dynamically
+- **Historical Learning**: Incorporates patterns from previous analyses
+- **Domain Knowledge**: Uses industry-specific diagnosis categories
+
+### **Enhanced Analyzer Agent**
+- **Dynamic Rule Application**: Applies business rules dynamically
+- **Safe Condition Evaluation**: Safely evaluates string-based conditions
+- **Rule Management**: Add, modify, and manage business rules
+- **Integration**: Updates the label generator with analysis results
+
+### **ML Integration**
+- **Dynamic Labels**: ML model uses dynamically generated labels
+- **Adaptive Training**: Model adapts to new patterns and rules
+- **Real-time Learning**: Incorporates new diagnoses automatically
+
+### **Configuration Management**
+- **Business Rules**: Configurable rules for diagnosis generation
+- **Pattern Discovery**: Automatic pattern identification and learning
+- **Domain Knowledge**: Industry-specific diagnosis categories
+- **Historical Tracking**: Pattern and label frequency management
+
+## 🚀 Performance Benefits
+
+### **Adaptability**
+- **Real-time Adaptation**: System adapts to changing business rules
+- **Pattern Learning**: Automatically learns new diagnosis patterns
+- **Market Responsiveness**: Responds to market condition changes
+- **Regulatory Compliance**: Adapts to regulatory requirement changes
+
+### **Scalability**
+- **Dynamic Label Generation**: Scales with data volume and complexity
+- **Pattern Discovery**: Efficient pattern identification algorithms
+- **Business Rule Management**: Flexible rule configuration and application
+- **Historical Learning**: Efficient pattern and frequency tracking
+
+### **Accuracy**
+- **Business Rule Validation**: Ensures rule-based accuracy
+- **Pattern Validation**: Validates discovered patterns
+- **ML Model Adaptation**: Model adapts to new patterns and rules
+- **Cross-validation**: Validates results across multiple approaches 

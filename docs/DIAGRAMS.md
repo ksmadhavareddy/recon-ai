@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document contains comprehensive diagrams for the AI-Powered Reconciliation System, including architecture, data flow, and component interactions.
+This document contains comprehensive diagrams for the AI-Powered Reconciliation System, including architecture, data flow, and component interactions, featuring the **dynamic label generation system**.
 
 ## System Architecture Diagram
 
@@ -13,44 +13,150 @@ graph TB
         B[new_pricing.xlsx]
         C[trade_metadata.xlsx]
         D[funding_model_reference.xlsx]
+        E[API Endpoints]
     end
     
     subgraph "Agent Layer"
-        E[UnifiedDataLoaderAgent]
-        F[ReconAgent]
-        G[AnalyzerAgent]
-        H[MLDiagnoserAgent]
-        I[NarratorAgent]
+        F[UnifiedDataLoaderAgent]
+        G[ReconAgent]
+        H[AnalyzerAgent]
+        I[DynamicLabelGenerator]
+        J[MLDiagnoserAgent]
+        K[NarratorAgent]
     end
     
     subgraph "Data Processing"
-        J[Merged DataFrame]
-        K[Flagged Mismatches]
-        L[Rule-based Diagnoses]
-        M[ML Predictions]
+        L[Merged DataFrame]
+        M[Flagged Mismatches]
+        N[Dynamic Rule-based Diagnoses]
+        O[Dynamic Labels]
+        P[ML Predictions with Dynamic Labels]
     end
     
     subgraph "Output Layer"
-        N[Excel Report]
-        O[Trained ML Model]
-        P[Summary Statistics]
+        Q[Excel Report]
+        R[Trained ML Model]
+        S[Summary Statistics]
+        T[Dynamic Label Patterns]
+    end
+    
+    A --> F
+    B --> F
+    C --> F
+    D --> F
+    E --> F
+    F --> L
+    L --> G
+    G --> M
+    M --> H
+    H --> N
+    N --> I
+    I --> O
+    O --> J
+    J --> P
+    P --> K
+    K --> Q
+    K --> S
+    J --> R
+    I --> T
+```
+
+## Dynamic Label Generation Architecture
+
+### Core Components
+```mermaid
+graph TB
+    subgraph "Dynamic Label Generator"
+        A[Business Rules Engine]
+        B[Pattern Discovery]
+        C[Domain Knowledge]
+        D[Historical Analysis]
+    end
+    
+    subgraph "Label Generation Process"
+        E[Rule Application]
+        F[Pattern Analysis]
+        G[Knowledge Integration]
+        H[Historical Learning]
+    end
+    
+    subgraph "Output"
+        I[Dynamic Labels]
+        J[Pattern Statistics]
+        K[Historical Patterns]
+    end
+    
+    A --> E
+    B --> F
+    C --> G
+    D --> H
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    F --> J
+    H --> K
+```
+
+### Business Rules Engine
+```mermaid
+graph LR
+    subgraph "Business Rules"
+        A[PV Rules]
+        B[Delta Rules]
+        C[Priority System]
+        D[Category Classification]
+    end
+    
+    subgraph "Rule Application"
+        E[Condition Evaluation]
+        F[Safe Expression Parsing]
+        G[Priority Sorting]
+        H[Label Assignment]
     end
     
     A --> E
     B --> E
-    C --> E
-    D --> E
-    E --> J
-    J --> F
-    F --> K
-    K --> G
-    G --> L
-    L --> H
-    H --> M
-    M --> I
-    I --> N
-    I --> P
-    H --> O
+    C --> G
+    D --> H
+    E --> F
+    F --> G
+    G --> H
+```
+
+### Pattern Discovery Process
+```mermaid
+graph TB
+    subgraph "Data Analysis"
+        A[PV Patterns]
+        B[Delta Patterns]
+        C[Temporal Patterns]
+        D[Product Patterns]
+    end
+    
+    subgraph "Pattern Processing"
+        E[Threshold Analysis]
+        F[Trend Detection]
+        G[Anomaly Detection]
+        H[Category Assignment]
+    end
+    
+    subgraph "Output"
+        I[Discovered Patterns]
+        J[Pattern Statistics]
+        K[New Labels]
+    end
+    
+    A --> E
+    B --> F
+    C --> G
+    D --> H
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    I --> J
+    I --> K
 ```
 
 ## Data Flow Architecture
@@ -95,7 +201,7 @@ sequenceDiagram
     participant DF as DataFrame
     
     U->>RA: Initialize(pv_tolerance, delta_tolerance)
-    U->>RA: add_diff_flags(df)
+    U->>RA: apply(df)
     RA->>DF: Calculate PV_Diff = PV_new - PV_old
     RA->>DF: Calculate Delta_Diff = Delta_new - Delta_old
     RA->>DF: Flag PV_Mismatch if |PV_Diff| > pv_tolerance
@@ -104,28 +210,37 @@ sequenceDiagram
     RA-->>U: DataFrame with mismatch flags
 ```
 
-### Phase 3: Analysis & Prediction
+### Phase 3: Dynamic Analysis & Prediction
 ```mermaid
 sequenceDiagram
     participant U as User
     participant AA as AnalyzerAgent
+    participant DLG as DynamicLabelGenerator
     participant MLA as MLDiagnoserAgent
     participant DF as DataFrame
     
-    U->>AA: Initialize()
+    U->>AA: Initialize(label_generator)
     U->>AA: apply(df)
-    AA->>DF: Apply rule_based_diagnosis to each row
-    AA-->>U: DataFrame with rule-based diagnoses
+    AA->>DF: Apply dynamic business rules
+    AA->>DF: Generate PV_Diagnosis and Delta_Diagnosis
+    AA->>DLG: update_from_analysis(df, analyzer_output)
+    DLG->>DLG: Update historical patterns
+    DLG->>DLG: Save patterns to config file
+    AA-->>U: DataFrame with dynamic diagnoses
     
     U->>MLA: Initialize(model_path)
-    alt Model exists
-        MLA->>MLA: load_model()
-    else Model doesn't exist
-        MLA->>MLA: train(df)
-        MLA->>MLA: save_model()
-    end
-    MLA->>MLA: predict(df)
-    MLA-->>U: DataFrame with ML diagnoses
+    U->>MLA: train(df, label_col='PV_Diagnosis')
+    MLA->>DLG: generate_labels(df, include_discovered=True)
+    DLG-->>MLA: Dynamic labels for training
+    MLA->>MLA: Train LightGBM model with dynamic labels
+    MLA->>MLA: Save model and metadata
+    MLA-->>U: Training results
+    
+    U->>MLA: predict(df, label_col='PV_Diagnosis')
+    MLA->>DLG: generate_labels(df, include_discovered=True)
+    DLG-->>MLA: Dynamic labels for prediction
+    MLA->>MLA: Make predictions with dynamic labels
+    MLA-->>U: Predicted diagnoses
 ```
 
 ### Phase 4: Report Generation
@@ -136,521 +251,316 @@ sequenceDiagram
     participant DF as DataFrame
     participant FS as File System
     
-    U->>NA: Initialize()
-    U->>NA: summarize_report(df)
-    NA->>DF: Calculate summary statistics
-    NA-->>U: Summary dictionary
-    
-    U->>NA: save_report(df, output_path)
-    NA->>DF: Select relevant columns
-    NA->>FS: Save to Excel file
-    FS-->>NA: Confirmation
-    NA-->>U: Report saved confirmation
+    U->>NA: generate_report(df, output_path)
+    NA->>DF: Extract all columns including dynamic labels
+    NA->>NA: Calculate summary statistics
+    NA->>NA: Generate Excel report with dynamic labels
+    NA->>FS: Save final_recon_report.xlsx
+    NA-->>U: Report path and summary statistics
 ```
 
-## Component Interaction Diagram
+## Business Rules Flow
 
+### PV Rule Application
+```mermaid
+graph TD
+    A[Start PV Analysis] --> B{PV_old is None?}
+    B -->|Yes| C[Label: New trade – no prior valuation]
+    B -->|No| D{PV_new is None?}
+    D -->|Yes| E[Label: Trade dropped from new model]
+    D -->|No| F{FundingCurve == 'USD-LIBOR' and ModelVersion != 'v2024.3'?}
+    F -->|Yes| G[Label: Legacy LIBOR curve with outdated model]
+    F -->|No| H{CSA_Type == 'Cleared' and PV_Mismatch == True?}
+    H -->|Yes| I[Label: CSA changed post-clearing]
+    H -->|No| J{PV_Mismatch == False?}
+    J -->|Yes| K[Label: Within tolerance]
+    J -->|No| L[Label: Default diagnosis]
+    
+    C --> M[End]
+    E --> M
+    G --> M
+    I --> M
+    K --> M
+    L --> M
+```
+
+### Delta Rule Application
+```mermaid
+graph TD
+    A[Start Delta Analysis] --> B{ProductType == 'Option' and Delta_Mismatch == True?}
+    B -->|Yes| C[Label: Vol sensitivity likely – delta impact]
+    B -->|No| D{Delta_Mismatch == False?}
+    D -->|Yes| E[Label: Within tolerance]
+    D -->|No| F[Label: Default diagnosis]
+    
+    C --> G[End]
+    E --> G
+    F --> G
+```
+
+## Pattern Discovery Flow
+
+### PV Pattern Discovery
+```mermaid
+graph TD
+    A[Analyze PV Data] --> B{PV_Diff > threshold?}
+    B -->|Yes| C[Identify large PV differences]
+    B -->|No| D{PV_Diff < -threshold?}
+    D -->|Yes| E[Identify negative PV shifts]
+    D -->|No| F[No significant pattern]
+    
+    C --> G[Create PV pattern label]
+    E --> H[Create PV pattern label]
+    F --> I[No pattern created]
+    
+    G --> J[Add to discovered patterns]
+    H --> J
+    I --> K[End]
+    J --> K
+```
+
+### Delta Pattern Discovery
+```mermaid
+graph TD
+    A[Analyze Delta Data] --> B{Delta_Diff > threshold?}
+    B -->|Yes| C[Identify large Delta differences]
+    B -->|No| D{Delta_Diff < -threshold?}
+    D -->|Yes| E[Identify negative Delta shifts]
+    D -->|No| F[No significant pattern]
+    
+    C --> G[Create Delta pattern label]
+    E --> H[Create Delta pattern label]
+    F --> I[No pattern created]
+    
+    G --> J[Add to discovered patterns]
+    H --> J
+    I --> K[End]
+    J --> K
+```
+
+## ML Model Integration
+
+### Training with Dynamic Labels
+```mermaid
+graph TD
+    A[Start Training] --> B[Load training data]
+    B --> C[Generate dynamic labels]
+    C --> D[Prepare features]
+    D --> E[Encode labels]
+    E --> F[Train LightGBM model]
+    F --> G[Update label generator]
+    G --> H[Save model and metadata]
+    H --> I[End Training]
+```
+
+### Prediction with Dynamic Labels
+```mermaid
+graph TD
+    A[Start Prediction] --> B[Load trained model]
+    B --> C[Generate dynamic labels]
+    C --> D[Prepare features]
+    D --> E[Make predictions]
+    E --> F[Decode labels]
+    F --> G[Return predictions]
+    G --> H[End Prediction]
+```
+
+## Domain Knowledge Categories
+
+### Trade Lifecycle Patterns
 ```mermaid
 graph LR
-    subgraph "Main Pipeline"
-        P[pipeline.py]
-        C[ReconciliationCrew]
-    end
-    
-    subgraph "Agent Components"
-        UDLA[UnifiedDataLoaderAgent]
-        RA[ReconAgent]
-        AA[AnalyzerAgent]
-        MLA[MLDiagnoserAgent]
-        NA[NarratorAgent]
-    end
-    
-    subgraph "Data Storage"
-        FS[File System]
-        API[API Endpoints]
-        M[Model Storage]
-    end
-    
-    P --> C
-    C --> UDLA
-    C --> RA
-    C --> AA
-    C --> MLA
-    C --> NA
-    
-    UDLA --> FS
-    UDLA --> API
-    RA --> FS
-    NA --> FS
-    MLA --> M
+    A[Trade Lifecycle] --> B[New trade – no prior valuation]
+    A --> C[Trade dropped from new model]
+    A --> D[Trade amended with new terms]
+    A --> E[Trade matured or expired]
 ```
 
-## ML Model Architecture
+### Curve/Model Patterns
+```mermaid
+graph LR
+    A[Curve/Model] --> B[Legacy LIBOR curve with outdated model]
+    A --> C[SOFR transition impact]
+    A --> D[Model version update]
+    A --> E[Curve interpolation changed]
+```
 
-### Training Pipeline
+### Funding/CSA Patterns
+```mermaid
+graph LR
+    A[Funding/CSA] --> B[CSA changed post-clearing]
+    A --> C[Collateral threshold changed]
+    A --> D[New clearing house]
+    A --> E[Bilateral to cleared transition]
+```
+
+### Volatility Patterns
+```mermaid
+graph LR
+    A[Volatility] --> B[Vol sensitivity likely]
+    A --> C[Option pricing model update]
+    A --> D[Market volatility spike]
+    A --> E[Volatility smile adjustment]
+```
+
+## Configuration Management
+
+### Business Rules Configuration
 ```mermaid
 graph TD
-    subgraph "Data Preparation"
-        A[Input DataFrame]
-        B[Feature Engineering]
-        C[Label Encoding]
-    end
-    
-    subgraph "Model Training"
-        D[LightGBM Classifier]
-        E[Feature Selection]
-        F[Hyperparameter Tuning]
-    end
-    
-    subgraph "Model Persistence"
-        G[Save Model]
-        H[Save Label Encoder]
-        I[Model File]
-    end
-    
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
+    A[Load Configuration] --> B{Config file exists?}
+    B -->|Yes| C[Load from file]
+    B -->|No| D[Use default rules]
+    C --> E[Parse business rules]
+    D --> F[Initialize default rules]
+    E --> G[Validate rules]
     F --> G
-    G --> H
-    H --> I
+    G --> H[Apply rules to analyzer]
+    H --> I[Configuration complete]
 ```
 
-### Prediction Pipeline
+### Pattern Discovery Configuration
 ```mermaid
 graph TD
-    subgraph "Input"
-        A[New DataFrame]
-        B[Feature Preparation]
-    end
-    
-    subgraph "Model Loading"
-        C[Load Trained Model]
-        D[Load Label Encoder]
-    end
-    
-    subgraph "Prediction"
-        E[Generate Predictions]
-        F[Decode Labels]
-    end
-    
-    subgraph "Output"
-        G[ML Diagnoses]
-        H[Confidence Scores]
-    end
-    
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    E --> H
+    A[Start Pattern Discovery] --> B[Set discovery parameters]
+    B --> C[Analyze PV patterns]
+    C --> D[Analyze Delta patterns]
+    D --> E[Analyze temporal patterns]
+    E --> F[Analyze product patterns]
+    F --> G[Combine discovered patterns]
+    G --> H[Update historical patterns]
+    H --> I[Save patterns to config]
+    I --> J[Pattern discovery complete]
 ```
 
-## Data Schema Diagram
+## Error Handling Flow
 
-### Input Data Structure
+### Dynamic Label Generation Errors
 ```mermaid
-erDiagram
-    OLD_PRICING {
-        string TradeID PK
-        float PV_old
-        float Delta_old
-    }
+graph TD
+    A[Generate Labels] --> B{Business rules valid?}
+    B -->|No| C[Log error: Invalid business rules]
+    B -->|Yes| D{Pattern discovery successful?}
+    D -->|No| E[Log error: Pattern discovery failed]
+    D -->|Yes| F{Label generation successful?}
+    F -->|No| G[Log error: Label generation failed]
+    F -->|Yes| H[Return generated labels]
     
-    NEW_PRICING {
-        string TradeID PK
-        float PV_new
-        float Delta_new
-    }
-    
-    TRADE_METADATA {
-        string TradeID PK
-        string ProductType
-        string FundingCurve
-        string CSA_Type
-        string ModelVersion
-    }
-    
-    FUNDING_REFERENCE {
-        string TradeID PK
-        float FundingRate
-        string CollateralType
-        string MarginType
-    }
-    
-    OLD_PRICING ||--|| TRADE_METADATA : TradeID
-    NEW_PRICING ||--|| TRADE_METADATA : TradeID
-    OLD_PRICING ||--|| FUNDING_REFERENCE : TradeID
-    NEW_PRICING ||--|| FUNDING_REFERENCE : TradeID
+    C --> I[Use fallback labels]
+    E --> I
+    G --> I
+    I --> J[End with fallback]
+    H --> K[End successfully]
 ```
 
-### Output Data Structure
+### Business Rule Evaluation Errors
 ```mermaid
-erDiagram
-    RECONCILIATION_REPORT {
-        string TradeID PK
-        float PV_old
-        float PV_new
-        float PV_Diff
-        float Delta_old
-        float Delta_new
-        float Delta_Diff
-        string ProductType
-        string FundingCurve
-        string CSA_Type
-        string ModelVersion
-        boolean PV_Mismatch
-        boolean Delta_Mismatch
-        string Diagnosis
-        string ML_Diagnosis
-    }
+graph TD
+    A[Evaluate Condition] --> B{Parse condition safely?}
+    B -->|No| C[Log error: Invalid condition syntax]
+    B -->|Yes| D{Evaluate condition successfully?}
+    D -->|No| E[Log error: Condition evaluation failed]
+    D -->|Yes| F[Return evaluation result]
+    
+    C --> G[Use default evaluation]
+    E --> G
+    G --> H[End with default]
+    F --> I[End successfully]
 ```
 
-## Process Flow Diagram
-
-### Complete Workflow
-```mermaid
-flowchart TD
-    A[Start] --> B[Load Data Files]
-    B --> C{Merge Successful?}
-    C -->|Yes| D[Calculate Differences]
-    C -->|No| E[Error: Missing Files]
-    D --> F[Flag Mismatches]
-    F --> G[Apply Rule-based Analysis]
-    G --> H{Model Exists?}
-    H -->|Yes| I[Load Model]
-    H -->|No| J[Train New Model]
-    J --> K[Save Model]
-    I --> L[Generate ML Predictions]
-    K --> L
-    L --> M[Generate Summary]
-    M --> N[Save Excel Report]
-    N --> O[End]
-    E --> O
-```
-
-### Error Handling Flow
-```mermaid
-flowchart TD
-    A[Start Process] --> B[Try Load Data]
-    B --> C{Data Load Success?}
-    C -->|Yes| D[Process Data]
-    C -->|No| E[Log Error]
-    E --> F[Return Error Message]
-    D --> G[Try Mismatch Detection]
-    G --> H{Detection Success?}
-    H -->|Yes| I[Continue Processing]
-    H -->|No| J[Log Error]
-    J --> F
-    I --> K[Try ML Processing]
-    K --> L{ML Success?}
-    L -->|Yes| M[Generate Report]
-    L -->|No| N[Log Error]
-    N --> F
-    M --> O[End Success]
-    F --> P[End with Error]
-```
-
-## Performance Monitoring Diagram
+## Performance Monitoring
 
 ### System Performance Metrics
 ```mermaid
 graph TD
-    subgraph "Input Performance"
-        A[Data Loading Time]
-        B[File Size]
-        C[Number of Trades]
-    end
-    
-    subgraph "Processing Performance"
-        D[Mismatch Detection Time]
-        E[Rule-based Analysis Time]
-        F[ML Training Time]
-        G[ML Prediction Time]
-    end
-    
-    subgraph "Output Performance"
-        H[Report Generation Time]
-        I[File Size]
-        J[Memory Usage]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    H --> J
+    A[Monitor Performance] --> B[Track processing time]
+    B --> C[Monitor memory usage]
+    C --> D[Track pattern discovery rate]
+    D --> E[Monitor label generation speed]
+    E --> F[Track ML model performance]
+    F --> G[Generate performance report]
+    G --> H[End monitoring]
 ```
 
-## Deployment Architecture
-
-### Local Deployment
-```mermaid
-graph TB
-    subgraph "User Environment"
-        A[Python 3.8+]
-        B[Required Packages]
-        C[Input Data Files]
-    end
-    
-    subgraph "Application"
-        D[Main Pipeline]
-        E[Agent Components]
-        F[ML Models]
-    end
-    
-    subgraph "Output"
-        G[Excel Reports]
-        H[Console Logs]
-        I[Trained Models]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> E
-    E --> F
-    D --> G
-    D --> H
-    F --> I
-```
-
-### Future Cloud Deployment
-```mermaid
-graph TB
-    subgraph "Cloud Infrastructure"
-        A[Load Balancer]
-        B[API Gateway]
-        C[Application Servers]
-        D[Database]
-        E[Object Storage]
-    end
-    
-    subgraph "Services"
-        F[Data Service]
-        G[Processing Service]
-        H[ML Service]
-        I[Reporting Service]
-    end
-    
-    subgraph "External"
-        J[Client Applications]
-        K[Data Sources]
-    end
-    
-    J --> A
-    A --> B
-    B --> C
-    C --> F
-    C --> G
-    C --> H
-    C --> I
-    F --> D
-    G --> D
-    H --> E
-    I --> E
-    K --> F
-```
-
-## Security Architecture
-
-### Data Security Flow
+### Dynamic Label Performance
 ```mermaid
 graph TD
-    subgraph "Input Security"
-        A[File Validation]
-        B[Data Type Checking]
-        C[Access Control]
-    end
-    
-    subgraph "Processing Security"
-        D[In-Memory Processing]
-        E[No External APIs]
-        F[Local Model Training]
-    end
-    
-    subgraph "Output Security"
-        G[Local File Storage]
-        H[No Data Transmission]
-        I[Model Encryption]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    F --> I
+    A[Monitor Dynamic Labels] --> B[Track label generation time]
+    B --> C[Monitor pattern discovery rate]
+    C --> D[Track business rule application]
+    D --> E[Monitor historical learning]
+    E --> F[Track label diversity]
+    F --> G[Generate label statistics]
+    G --> H[End monitoring]
 ```
 
-## Monitoring and Alerting
+## Integration Examples
 
-### System Monitoring
+### Complete Workflow Integration
 ```mermaid
 graph TD
-    subgraph "Monitoring Points"
-        A[Data Loading]
-        B[Processing Time]
-        C[Memory Usage]
-        D[Error Rates]
-        E[Model Performance]
-    end
-    
-    subgraph "Alerts"
-        F[File Missing Alert]
-        G[Processing Time Alert]
-        H[Memory Usage Alert]
-        I[Error Alert]
-        J[Model Accuracy Alert]
-    end
-    
-    A --> F
-    B --> G
-    C --> H
-    D --> I
-    E --> J
+    A[Start Workflow] --> B[Load Data]
+    B --> C[Detect Mismatches]
+    C --> D[Apply Dynamic Analysis]
+    D --> E[Generate Dynamic Labels]
+    E --> F[Train ML Model]
+    F --> G[Make Predictions]
+    G --> H[Generate Report]
+    H --> I[End Workflow]
 ```
 
-## Integration Architecture
-
-### External System Integration
-```mermaid
-graph LR
-    subgraph "External Systems"
-        A[Database Systems]
-        B[File Systems]
-        C[APIs]
-        D[Message Queues]
-    end
-    
-    subgraph "Integration Layer"
-        E[Data Connectors]
-        F[API Wrappers]
-        G[Format Converters]
-    end
-    
-    subgraph "Core System"
-        H[Reconciliation Pipeline]
-        I[ML Models]
-        J[Reporting Engine]
-    end
-    
-    A --> E
-    B --> E
-    C --> F
-    D --> G
-    E --> H
-    F --> H
-    G --> H
-    H --> I
-    H --> J
-```
-
-## Scalability Architecture
-
-### Horizontal Scaling
+### Custom Business Rules Integration
 ```mermaid
 graph TD
-    subgraph "Load Balancer"
-        A[Request Router]
-    end
-    
-    subgraph "Processing Nodes"
-        B[Node 1]
-        C[Node 2]
-        D[Node N]
-    end
-    
-    subgraph "Shared Resources"
-        E[Shared Storage]
-        F[Model Repository]
-        G[Configuration Store]
-    end
-    
-    A --> B
-    A --> C
-    A --> D
-    B --> E
-    C --> E
-    D --> E
-    B --> F
-    C --> F
-    D --> F
-    B --> G
-    C --> G
-    D --> G
+    A[Add Custom Rule] --> B[Validate rule syntax]
+    B --> C[Add to business rules]
+    C --> D[Update analyzer agent]
+    D --> E[Test rule application]
+    E --> F[Deploy rule]
+    F --> G[Monitor rule performance]
+    G --> H[End integration]
 ```
 
-## Future Enhancement Architecture
-
-### Real-time Processing
+### ML Model Integration
 ```mermaid
 graph TD
-    subgraph "Data Sources"
-        A[Real-time Feeds]
-        B[Event Streams]
-        C[Message Queues]
-    end
-    
-    subgraph "Stream Processing"
-        D[Kafka Consumer]
-        E[Stream Processor]
-        F[Real-time ML]
-    end
-    
-    subgraph "Output"
-        G[Live Dashboards]
-        H[Real-time Alerts]
-        I[Continuous Reports]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    F --> H
-    F --> I
+    A[Initialize ML Agent] --> B[Load dynamic labels]
+    B --> C[Prepare features]
+    C --> D[Train model]
+    D --> E[Make predictions]
+    E --> F[Update label generator]
+    F --> G[Save model]
+    G --> H[End integration]
 ```
 
-### Advanced ML Pipeline
+## Future Enhancements
+
+### Advanced Pattern Recognition
 ```mermaid
 graph TD
-    subgraph "Data Pipeline"
-        A[Feature Engineering]
-        B[Data Validation]
-        C[Data Augmentation]
-    end
-    
-    subgraph "Model Pipeline"
-        D[Model Selection]
-        E[Hyperparameter Tuning]
-        F[Ensemble Methods]
-    end
-    
-    subgraph "Deployment"
-        G[Model Versioning]
-        H[A/B Testing]
-        I[Performance Monitoring]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
+    A[Advanced Patterns] --> B[ML-based pattern discovery]
+    B --> C[Deep learning integration]
+    C --> D[Ensemble methods]
+    D --> E[Real-time pattern recognition]
+    E --> F[End enhancement]
+```
+
+### Real-time Streaming
+```mermaid
+graph TD
+    A[Real-time Processing] --> B[Stream data ingestion]
+    B --> C[Real-time analysis]
+    C --> D[Live pattern discovery]
+    D --> E[Instant label generation]
+    E --> F[End enhancement]
+```
+
+### Advanced Analytics
+```mermaid
+graph TD
+    A[Advanced Analytics] --> B[Statistical analysis]
+    B --> C[Trend detection]
+    C --> D[Anomaly detection]
+    D --> E[Predictive analytics]
+    E --> F[End enhancement]
 ``` 
