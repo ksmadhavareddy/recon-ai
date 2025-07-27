@@ -14,7 +14,8 @@ This comprehensive documentation suite provides everything you need to understan
 ### **For Developers**
 1. **[API Reference](API_REFERENCE.md)** - Complete API documentation
 2. **[Architecture](ARCHITECTURE.md)** - System design and components
-3. **[Complete User Guide](USAGE_GUIDE.md)** - Configuration and advanced usage
+3. **[Crew Pipeline Flow](CREW_PIPELINE_FLOW.md)** - Detailed pipeline execution flow
+4. **[Complete User Guide](USAGE_GUIDE.md)** - Configuration and advanced usage
 
 ### **For System Administrators**
 1. **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
@@ -40,6 +41,7 @@ This comprehensive documentation suite provides everything you need to understan
 |----------|---------|----------|-------------|
 | **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** | Production deployment | DevOps, System Admins | Docker, cloud deployment, CI/CD |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Problem-solving guide | All users | Common issues, solutions, debug techniques |
+| **[CREW_PIPELINE_FLOW.md](CREW_PIPELINE_FLOW.md)** | Pipeline execution flow | Developers | Detailed crew pipeline execution, agent interactions |
 
 ### **Legacy Documentation (For Reference)**
 
@@ -75,8 +77,9 @@ This comprehensive documentation suite provides everything you need to understan
 ### **For Developers**
 1. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design principles
 2. **[API_REFERENCE.md](API_REFERENCE.md)** - Complete API documentation
-3. **[USAGE_GUIDE.md](USAGE_GUIDE.md#running-the-system)** - System usage
-4. **[USAGE_GUIDE.md](USAGE_GUIDE.md#configuration)** - Configuration options
+3. **[CREW_PIPELINE_FLOW.md](CREW_PIPELINE_FLOW.md)** - Detailed pipeline execution flow
+4. **[USAGE_GUIDE.md](USAGE_GUIDE.md#running-the-system)** - System usage
+5. **[USAGE_GUIDE.md](USAGE_GUIDE.md#configuration)** - Configuration options
 
 ---
 
@@ -94,6 +97,7 @@ This comprehensive documentation suite provides everything you need to understan
 
 ### **Running the System**
 - **[USAGE_GUIDE.md](USAGE_GUIDE.md#running-the-system)** - How to run the system
+- **[CREW_PIPELINE_FLOW.md](CREW_PIPELINE_FLOW.md)** - Detailed pipeline execution
 - **[USAGE_GUIDE.md](USAGE_GUIDE.md#data-preparation)** - Data preparation
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Runtime issues
 
